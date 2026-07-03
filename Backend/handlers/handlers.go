@@ -128,7 +128,7 @@ func (d DTO) HandleNotify(w http.ResponseWriter, r *http.Request) {
 		var emails_to_send []string
 		notification_message := req.Message
 		emails_to_send = append(emails_to_send, user_email)
-		d.smtp.SendMessage(emails_to_send, []byte(notification_message))
+		d.smtp.SendMessage(emails_to_send, []byte(notification_message), req.Notify_Type)
 		return
 	}
 
@@ -157,7 +157,7 @@ func (d DTO) HandleNotify(w http.ResponseWriter, r *http.Request) {
 	// Если мы хотим уведомление по Email
 	if want_email {
 		emails_to_send = append(emails_to_send, user_email)
-		d.smtp.SendMessage(emails_to_send, []byte(notification_message))
+		d.smtp.SendMessage(emails_to_send, []byte(notification_message), req.Notify_Type)
 	}
 
 	// Если мы хотим уведомление по Webhook

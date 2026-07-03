@@ -23,7 +23,7 @@ func NewSmtpDTO(e string, p string, h string, port string) *SmtpDTO {
 	}
 }
 
-func (s SmtpDTO) SendMessage(receiverEmails []string, message []byte) {
+func (s SmtpDTO) SendMessage(receiverEmails []string, message []byte, notify_type string) {
 	tlsConfig := &tls.Config{
 		ServerName: s.Host,
 	}
@@ -37,44 +37,61 @@ func (s SmtpDTO) SendMessage(receiverEmails []string, message []byte) {
 
 	client, err := smtp.NewClient(conn, s.Host)
 	if err != nil {
-		fmt.Printf("создание клиента: %w", err)
+		fmt.Printf("создание клиента: %v", err)
 		return
 	}
 	defer client.Quit()
 
 	auth := smtp.PlainAuth("", s.Email, s.Password, s.Host)
 	if err = client.Auth(auth); err != nil {
-		fmt.Printf("аутентификация: %w", err)
+		fmt.Printf("аутентификация: %v", err)
 		return
 	}
 
 	if err = client.Mail(s.Email); err != nil {
-		fmt.Printf("отправитель: %w", err)
+		fmt.Printf("отправитель: %v", err)
 		return
 	}
 
 	for _, rcpt := range receiverEmails {
 		if err = client.Rcpt(rcpt); err != nil {
-			fmt.Printf("получатель %s: %w", rcpt, err)
+			fmt.Printf("получатель %s: %v", rcpt, err)
 			return
 		}
 	}
 
 	w, err := client.Data()
 	if err != nil {
-		fmt.Printf("открытие Data: %w", err)
+		fmt.Printf("открытие Data: %v", err)
 		return
 	}
 	defer w.Close()
 
-	temp_message := string(message)
+	var topic string
+	switch notify_type {
+	case "user_register":
+		topic = "Регистрация аккаунта"
+	case "user_login":
+		topic = "Вход в аккаунт"
+	case "admin_newImg":
+		topic = "Новое изображение для модерации"
+	case "user_imgVerdict":
+		topic = "Модерация вашего поста"
+	case "user_email_confirmation":
+		topic = "Подтверждение почты"
+	default:
+		topic = "Служебное сообщение"
+	}
+
+	var temp_message = "Subject: " + topic + "\r\n" + "\r\n"
+	temp_message += string(message)
 	temp_message = strings.ReplaceAll(temp_message, "<b>", "")
 	temp_message = strings.ReplaceAll(temp_message, "</b>", "")
 	byte_temp_message := []byte(temp_message)
 
 	_, err = w.Write(byte_temp_message)
 	if err != nil {
-		fmt.Printf("запись письма: %w", err)
+		fmt.Printf("запись письма: %v", err)
 		return
 	}
 }
