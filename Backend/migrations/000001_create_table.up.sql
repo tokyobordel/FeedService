@@ -1,0 +1,18 @@
+CREATE TABLE IF NOT EXISTS client (
+    id SERIAL PRIMARY KEY,
+    client_name VARCHAR(300),
+    client_token VARCHAR(4096),
+    client_login VARCHAR(300),
+    client_password VARCHAR(300),
+    telegram_id INTEGER,
+    email VARCHAR(500)
+);
+
+CREATE TABLE IF NOT EXISTS notify_type_message (
+    id SERIAL PRIMARY KEY,
+    notify_type VARCHAR(200) UNIQUE,
+    want_telegram BOOLEAN,
+    want_email BOOLEAN,
+    want_webhook BOOLEAN,
+    webhook_url VARCHAR(500)
+)
