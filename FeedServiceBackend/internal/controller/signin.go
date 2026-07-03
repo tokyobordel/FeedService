@@ -1,14 +1,15 @@
-package endpointHandlers
+package controller
 
 import (
-	"traineesheep/feedservice/models"
-	"traineesheep/feedservice/utils"
-	"traineesheep/feedservice/jwtUtils"
+	"traineesheep/feedservice/internal/middleware"
+	"traineesheep/feedservice/internal/utils"
+	"traineesheep/feedservice/internal/utils/notify"
+
 	"github.com/gofiber/fiber/v2"
 	"golang.org/x/crypto/bcrypt"
 )
 
-func SigninHandler(c *fiber.Ctx) error {
+func (ctrl *Controller) signin(c *fiber.Ctx) error {
 	input, parseError := utils.ParseUserData(c, false)
 	if parseError != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(utils.ApiResponse{
@@ -18,14 +19,10 @@ func SigninHandler(c *fiber.Ctx) error {
 		})
 	}
 
-	var user models.User
-	err := models.DB.QueryRow(
-		"SELECT id, username, password, created_at FROM users WHERE username = $1",
-		input.Username,
-	).Scan(&user.ID, &user.Username, &user.Password, &user.CreatedAt)
-	if err != nil {
-		// Пользователь не найден или неверный пароль
-		return c.Status(fiber.StatusUnauthorized).JSON(utils.ApiResponse{
+	user, userError := ctrl.UserService.GetByUsername(input.Username)
+
+	if userError != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(utils.ApiResponse{
 			Data:       nil,
 			Success:    false,
 			ErrMessage: "Неверное имя пользователя или пароль",
@@ -41,7 +38,7 @@ func SigninHandler(c *fiber.Ctx) error {
 		})
 	}
 
-	accessToken, err := jwtUtils.GenerateAccessToken(user)
+	accessToken, err := middleware.GenerateAccessToken(user.ID)
 	if err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(utils.ApiResponse{
 			Data:       nil,
@@ -50,7 +47,7 @@ func SigninHandler(c *fiber.Ctx) error {
 		})
 	}
 
-	refreshToken, err := jwtUtils.GenerateRefreshToken()
+	refreshToken, err := middleware.GenerateRefreshToken()
 	if err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(utils.ApiResponse{
 			Data:       nil,
@@ -59,6 +56,7 @@ func SigninHandler(c *fiber.Ctx) error {
 		})
 	}
 
+	notify.NotifyLogin(input.Username, input.Email)
 
 	// Успех – возвращаем токен
 	return c.JSON(utils.ApiResponse{

@@ -55,14 +55,14 @@ export function initFeed() {
     function loadMainFeed() {
         currentUserFeed = null;
         allPostsBtn.style.display = 'none';
-        fetchPosts(process.env.FS_URL + '/loadMainFeed');
+        fetchPosts(process.env.FS_URL + '/feed');
     }
 
     // Загрузка ленты конкретного пользователя
     window.loadUserFeed = (userId) => {
         currentUserFeed = userId;
         allPostsBtn.style.display = 'inline-block';
-        fetchPosts(`${process.env.FS_URL}/loadUserFeed/${userId}`);
+        fetchPosts(`${process.env.FS_URL}/feed?user_id=${userId}`);
     }
 
     // Обработчики
