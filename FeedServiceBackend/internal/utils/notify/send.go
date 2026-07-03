@@ -1,29 +1,22 @@
-package authUtils
+package notify
 
 import (
-	"traineesheep/feedservice/models"
-	"traineesheep/feedservice/utils"
+	"bytes"
 	"encoding/json"
 	"log"
 	"net/http"
 	"time"
-	"bytes"
+	"traineesheep/feedservice/internal/utils"
 )
 
-// notifyUserRegistered отправляет данные о новом пользователе на NOTIFY_URL
-func NotifyUserRegistered(user models.User) {
+// sendPayload - отправка уведомления в NotificationService
+func sendPayload(payload map[string]interface{}) {
     notifyURL := utils.GetEnv("NOTIFY_URL", "")
     if notifyURL == "" {
-        return // уведомления отключены
+        log.Println("Уведомления отключены")
+        return;
     }
-
-    // todo переписать payload (скорее всего, будет не такой)
-    payload := map[string]interface{}{
-		"notify_type": "user_register",
-		"message": "Пользователь " + user.Username + " создан",
-		"telegram_id": 924956695,
-    }
-
+    
     body, err := json.Marshal(payload)
     if err != nil {
         log.Printf("Ошибка формирования уведомления: %v", err)
@@ -41,6 +34,6 @@ func NotifyUserRegistered(user models.User) {
     if resp.StatusCode >= 400 {
         log.Printf("Уведомление не доставлено, статус: %d", resp.StatusCode)
     } else {
-        log.Printf("Уведомление о регистрации пользователя %s отправлено", user.Username)
+        log.Printf("Уведомление отправлено")
     }
 }

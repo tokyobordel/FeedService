@@ -1,20 +1,21 @@
-package endpointHandlers
+package controller
 
 import (
-	"traineesheep/feedservice/models"
-	"traineesheep/feedservice/utils"
-	"github.com/gofiber/fiber/v2"
-	"time"
-	"strings"
-	"fmt"
-	"net/http"
 	"bytes"
+	"encoding/base64"
+	"encoding/json"
+	"fmt"
 	"io"
 	"log"
-	"encoding/json"
-    "path/filepath"
-    "mime"
-    "encoding/base64"
+	"mime"
+	"net/http"
+	"path/filepath"
+	"strconv"
+	"strings"
+	"time"
+	"traineesheep/feedservice/internal/utils"
+
+	"github.com/gofiber/fiber/v2"
 )
 
 func mimeTypeByExtension(filename string) string {
@@ -46,7 +47,7 @@ func mediaTypeToShort(mediaType string) string {
     return subtype
 }
 
-func UploadHandler(c *fiber.Ctx) error {
+func (ctrl *Controller) Upload(c *fiber.Ctx) error {
 	// Проверяем Content-Type
     contentType := string(c.Request().Header.ContentType())
     if !strings.HasPrefix(contentType, "multipart/form-data") {
@@ -94,9 +95,9 @@ func UploadHandler(c *fiber.Ctx) error {
     }
 
     // Структура ответа от внешнего сервиса (предполагаем {"id": 123})
-    /*type externalImageResponse struct {
+    type externalImageResponse struct {
         ID int `json:"id"`
-    }*/
+    }
 
     var imageIDs []int // сюда соберём полученные id
 
@@ -197,27 +198,18 @@ func UploadHandler(c *fiber.Ctx) error {
         idFloat, ok := idRaw.(float64)
         if !ok {
             // Иногда id может быть строкой или другим типом — обработаем и это
-            // Но в вашем случае, судя по примеру, это число
             return c.Status(fiber.StatusInternalServerError).JSON(utils.ApiResponse{
                 Success: false, ErrMessage: "Неверный тип id в ответе ImageService",
             })
         }
 
-        // 4. Преобразуем в int (или сразу в нужный вам тип, например, int64)
+        // 4. Преобразуем в int
         imageID := int(idFloat)
 
         imageIDs = append(imageIDs, imageID)
     }
 
     // Все файлы успешно отправлены, создаём пост и записи в image_post
-    tx, err := models.DB.Begin()
-    if err != nil {
-        return c.Status(fiber.StatusInternalServerError).JSON(utils.ApiResponse{
-            Success: false, ErrMessage: "Ошибка базы данных",
-        })
-    }
-    defer tx.Rollback()
-
     userID := c.FormValue("user_id")
     title := c.FormValue("title")
     description := c.FormValue("description")
@@ -227,36 +219,23 @@ func UploadHandler(c *fiber.Ctx) error {
         title = "Без названия"
     }
 
-    var post models.Post
-    err = tx.QueryRow(
-        "INSERT INTO post (user_id, title, description) VALUES ($1, $2, $3) RETURNING id, user_id, title, description, created_at",
-        userID, title, description, // user_id = 0, пока нет авторизации
-    ).Scan(&post.ID, &post.UserID, &post.Title, &post.Description, &post.CreatedAt)
-    if err != nil {
-        return c.Status(fiber.StatusInternalServerError).JSON(utils.ApiResponse{
-            Success: false, ErrMessage: "Не удалось создать пост",
+    userIDInt, IDError := strconv.Atoi(userID)
+    if IDError != nil {
+        c.Status(fiber.StatusBadRequest).JSON(utils.ApiResponse{
+            Success: false,
+            Data: nil,
+            ErrMessage: "Некорректный userID",
         })
     }
 
-    for _, imgID := range imageIDs {
-        _, err = tx.Exec(
-            "INSERT INTO image_post (post_id, image_id) VALUES ($1, $2)",
-            post.ID, imgID,
-        )
-        if err != nil {
-            return c.Status(fiber.StatusInternalServerError).JSON(utils.ApiResponse{
-                Success: false, ErrMessage: "Ошибка привязки изображения к посту",
-            })
-        }
-    }
-
-    if err := tx.Commit(); err != nil {
-        return c.Status(fiber.StatusInternalServerError).JSON(utils.ApiResponse{
-            Success: false, ErrMessage: "Ошибка сохранения данных",
+    post, postError := ctrl.FeedService.CreatePost(userIDInt, title, description, imageIDs)
+    if postError != nil {
+        c.Status(fiber.StatusInternalServerError).JSON(utils.ApiResponse{
+            Success: false,
+            Data: nil,
+            ErrMessage: "Ошибка создания поста",
         })
     }
-
-	// todo отправить уведомление
 
     return c.Status(fiber.StatusCreated).JSON(utils.ApiResponse{
         Success: true,

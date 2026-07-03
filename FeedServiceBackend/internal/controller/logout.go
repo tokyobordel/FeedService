@@ -1,12 +1,12 @@
-package endpointHandlers
+package controller
 
 import (
-	"traineesheep/feedservice/models"
-	"traineesheep/feedservice/utils"
+	"traineesheep/feedservice/internal/utils"
+
 	"github.com/gofiber/fiber/v2"
 )
 
-func LogoutHandler(c *fiber.Ctx) error {
+func (ctrl *Controller) Logout(c *fiber.Ctx) error {
     var input struct {
         RefreshToken string `json:"refresh_token"`
     }
@@ -18,7 +18,7 @@ func LogoutHandler(c *fiber.Ctx) error {
 
     if input.RefreshToken != "" {
         // Удаляем токен из БД (ошибки игнорируем — токен мог быть уже удалён)
-        models.DB.Exec("DELETE FROM refresh_tokens WHERE token = $1", input.RefreshToken)
+        ctrl.TokenService.DeleteToken(input.RefreshToken)
     }
 
     return c.JSON(utils.ApiResponse{

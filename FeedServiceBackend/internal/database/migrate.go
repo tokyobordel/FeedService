@@ -1,56 +1,11 @@
-package models
+package database
 
 import (
 	"database/sql"
-	"fmt"
 	"log"
-	"time"
-	"traineesheep/feedservice/utils"
-	_ "github.com/lib/pq"
 )
 
-var DB *sql.DB
-
-
-func InitDB() {
-	connStr := fmt.Sprintf(
-		"host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
-		utils.GetEnv("DB_HOST", "localhost"),
-		utils.GetEnv("DB_PORT", "5432"),
-		utils.GetEnv("DB_USER", "postgres"),
-		utils.GetEnv("DB_PASSWORD", "123"),
-		utils.GetEnv("DB_NAME", "postgres"),
-		utils.GetEnv("DB_SSLMODE", "disable"),
-	)
-
-	var err error
-	DB, err = sql.Open("postgres", connStr)
-	if err != nil {
-		log.Fatalf("Не удалось открыть БД: %v", err)
-	}
-
-	// Настройка пула соединений
-	DB.SetMaxOpenConns(25)
-	DB.SetMaxIdleConns(5)
-	DB.SetConnMaxLifetime(5 * time.Minute)
-
-	if err = DB.Ping(); err != nil {
-		log.Fatalf("Нет соединения с БД: %v", err)
-	}
-
-	log.Println("Подключение к базе данных установлено")
-
-	initTables()
-}
-
-func closeDB() {
-	if DB != nil {
-		DB.Close()
-		log.Println("Соединение с базой данных закрыто")
-	}
-}
-
-func initTables() {
+func Migrate(db *sql.DB) {
 	log.Println("Создаем таблицы")
 
 	createUsersTable := `
@@ -89,22 +44,22 @@ func initTables() {
 	);`
 
 
-	if _, err := DB.Exec(createUsersTable); err != nil {
+	if _, err := db.Exec(createUsersTable); err != nil {
 		log.Fatalf("Ошибка создания таблицы users: %v", err)
 	}
 	log.Println("Таблица users готова")
 
-	if _, err := DB.Exec(createPostTable); err != nil {
+	if _, err := db.Exec(createPostTable); err != nil {
 		log.Fatalf("Ошибка создания таблицы post: %v", err)
 	}
 	log.Println("Таблица post готова")
 
-	if _, err := DB.Exec(createImagePostTable); err != nil {
+	if _, err := db.Exec(createImagePostTable); err != nil {
 		log.Fatalf("Ошибка создания таблицы image_post: %v", err)
 	}
 	log.Println("Таблица image_post готова")
 
-	if _, err := DB.Exec(createRefreshTokenTable); err != nil {
+	if _, err := db.Exec(createRefreshTokenTable); err != nil {
 		log.Fatalf("Ошибка создания таблицы refresh_tokens: %v", err)
 	}
 	log.Println("Таблица refresh_tokens готова")

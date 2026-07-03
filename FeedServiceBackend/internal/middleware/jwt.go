@@ -1,4 +1,4 @@
-package jwtUtils
+package middleware
 
 import (
 	"crypto/rand"
@@ -6,8 +6,7 @@ import (
 	"fmt"
 	"strconv"
 	"time"
-	"traineesheep/feedservice/models"
-	"traineesheep/feedservice/utils"
+	"traineesheep/feedservice/internal/utils"
 
 	jwtware "github.com/gofiber/contrib/jwt"
 	"github.com/gofiber/fiber/v2"
@@ -26,9 +25,9 @@ var AuthRequired = jwtware.New(jwtware.Config{
     },
 })
 
-func GenerateAccessToken(user models.User) (string, error) {
+func GenerateAccessToken(userID int) (string, error) {
     claims := jwt.MapClaims{
-        "sub": strconv.Itoa(user.ID),
+        "sub": strconv.Itoa(userID),
         "exp": time.Now().Add(15 * time.Minute).Unix(),
         "iat": time.Now().Unix(),
     }
