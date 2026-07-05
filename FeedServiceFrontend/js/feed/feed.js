@@ -1,5 +1,33 @@
 import { createPost, createPostsHandlers } from "./post";
 
+/**
+ * Инициализирует основную ленту постов.
+ *
+ * Настраивает загрузку и отображение постов с сервера, переключение между
+ * общей лентой и лентой конкретного пользователя. Управляет DOM-элементами
+ * (`#feedContainer`, `#feedLoader`, `#allPostsBtn`, `.logo`, `#userNameDisplay`)
+ * и создаёт глобальные функции `window.loadUserFeed` и `window.reloadFeed`.
+ *
+ * **Принцип работы:**
+ * 1. По умолчанию загружается общая лента (`/api/feed`).
+ * 2. При клике на имя автора поста вызывается `window.loadUserFeed(userId)`,
+ *    которая загружает ленту конкретного пользователя (`/api/feed?user_id=...`).
+ * 3. Кнопка «Все посты» и логотип возвращают к общей ленте.
+ * 4. Клик по `#userNameDisplay` загружает ленту текущего залогиненного пользователя.
+ * 5. Функция `window.reloadFeed` перезагружает текущую активную ленту.
+ *
+ *
+ * @function initFeed
+ * @global
+ * @requires module:post~createPost - генерирует HTML карточки поста.
+ * @requires module:post~createPostsHandlers - добавляет обработчики после рендеринга.
+ * @requires HTML-элементы с id: `feedContainer`, `feedLoader`, `allPostsBtn`,
+ *           `userNameDisplay`, а также элемент с классом `logo`.
+ * @returns {void}
+ *
+ * @example
+ * document.addEventListener('DOMContentLoaded', initFeed);
+ */
 export function initFeed() {
     // Контейнер для постов
     const feedContainer = document.getElementById('feedContainer');
@@ -10,19 +38,17 @@ export function initFeed() {
     // Текущий режим: null = общая лента, иначе ID пользователя
     let currentUserFeed = null;
 
-    // Функция для получения заголовков авторизации
-    function getAuthHeaders() {
-        const token = localStorage.getItem('access_token');
-        return token ? { 'Authorization': 'Bearer ' + token } : {};
-    }
-
-    // Загрузка постов с API
+    /**
+     * Внутренняя функция загрузки постов с указанного URL.
+     * @param {string} url - эндпоинт API
+     * @returns {Promise<void>}
+     */
     async function fetchPosts(url) {
         console.log(url)
         feedLoader.style.display = 'block';
         feedContainer.innerHTML = '';
         try {
-            const response = await fetch(url, { headers: getAuthHeaders() });
+            const response = await fetch(url);
             if (!response.ok) throw new Error('Ошибка загрузки');
             const data = await response.json();
             if (data.success) {
@@ -38,7 +64,10 @@ export function initFeed() {
         }
     }
 
-    // Рендер массива постов
+    /**
+     * Внутренняя функция рендеринга массива постов.
+     * @param {Array} posts - массив объектов постов
+     */
     function renderPosts(posts) {
         if (!posts || posts.length === 0) {
             feedContainer.innerHTML = '<p style="text-align:center;padding:2rem;">'
@@ -51,7 +80,7 @@ export function initFeed() {
         createPostsHandlers()
     }
 
-    // Загрузка главной ленты
+    /** Загружает общую ленту, скрывая кнопку «Все посты» и показывая имя пользователя */
     function loadMainFeed() {
         currentUserFeed = null;
         allPostsBtn.style.display = 'none';
@@ -59,7 +88,15 @@ export function initFeed() {
         fetchPosts('/api/feed');
     }
 
-    // Загрузка ленты конкретного пользователя
+    /**
+     * Глобальная функция загрузки ленты конкретного пользователя.
+     *
+     * @global
+     * @function loadUserFeed
+     * @memberof window
+     * @param {number} userId - ID пользователя для фильтрации постов.
+     * @returns {void}
+     */
     window.loadUserFeed = (userId) => {
         currentUserFeed = userId;
         allPostsBtn.style.display = 'inline-block';
@@ -91,7 +128,17 @@ export function initFeed() {
     // Инициализация: загружаем главную ленту
     loadMainFeed();
 
-    // Экспортируем функцию для вызова из других скриптов
+    /**
+     * Глобальная функция перезагрузки текущей ленты.
+     *
+     * Если была открыта общая лента – перезагружает её,
+     * иначе повторно загружает ленту ранее выбранного пользователя.
+     *
+     * @global
+     * @function reloadFeed
+     * @memberof window
+     * @returns {void}
+     */
     window.reloadFeed = function() {
         if (currentUserFeed === null) {
             loadMainFeed();

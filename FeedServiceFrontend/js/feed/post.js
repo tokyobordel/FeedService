@@ -1,3 +1,22 @@
+/**
+ * Переключает видимость изображений в слайдере поста на предыдущее.
+ *
+ * Находит текущее видимое изображение (с классом `showedImage`) внутри блока
+ * с id `images_${postId}` и, если существует предыдущий соседний элемент,
+ * скрывает текущее и показывает предыдущее.
+ *
+ * @global
+ * @function prevImage
+ * @memberof window
+ * @param {number|string} postId - Идентификатор поста, для которого переключается слайдер.
+ * @requires HTML-элемент с id `images_${postId}`, внутри которого есть элементы
+ *           с классом `showedImage`.
+ * @returns {void}
+ *
+ * @example
+ * // Вызов из обработчика клика
+ * <span onClick="prevImage(42)">←</span>
+ */
 window.prevImage = (postId) => {
     const imagesBlock = document.getElementById("images_" + postId);
     const currentImage = imagesBlock.querySelector(".showedImage");
@@ -8,6 +27,25 @@ window.prevImage = (postId) => {
     }
 }
 
+/**
+ * Переключает видимость изображений в слайдере поста на следующее.
+ *
+ * Находит текущее видимое изображение (с классом `showedImage`) внутри блока
+ * с id `images_${postId}` и, если существует следующий соседний элемент,
+ * скрывает текущее и показывает следующий.
+ *
+ * @global
+ * @function nextImage
+ * @memberof window
+ * @param {number|string} postId - Идентификатор поста, для которого переключается слайдер.
+ * @requires HTML-элемент с id `images_${postId}`, внутри которого есть элементы
+ *           с классом `showedImage`.
+ * @returns {void}
+ *
+ * @example
+ * // Вызов из обработчика клика
+ * <span onClick="nextImage(42)">→</span>
+ */
 window.nextImage = (postId) => {
     const imagesBlock = document.getElementById("images_" + postId);
     const currentImage = imagesBlock.querySelector(".showedImage");
@@ -18,17 +56,41 @@ window.nextImage = (postId) => {
     }
 }
 
-
+/**
+ * Генерирует HTML-разметку карточки поста со слайдером изображений.
+ *
+ * Использует `process.env.IS_URL` - URL ImageService - для формирования полного URL изображений.
+ * Если у поста есть несколько изображений, добавляет кнопки навигации,
+ * вызывающие глобальные функции {@link window.prevImage} и {@link window.nextImage}.
+ *
+ * @function createPost
+ * @param {Object} post - Объект с данными поста.
+ * @param {number} post.id - Уникальный идентификатор поста.
+ * @param {number} [post.user_id] - ID автора поста.
+ * @param {string} [post.username] - Имя автора.
+ * @param {string} [post.title] - Заголовок поста.
+ * @param {string} [post.description] - Описание поста.
+ * @param {string} [post.created_at] - Дата создания (в строковом представлении).
+ * @param {Array<number|string>} [post.images] - Массив идентификаторов изображений.
+ * @returns {string} HTML-строка с карточкой поста.
+ * @requires process.env.IS_URL - базовый URL ImageService для загрузки изображений.
+ *
+ * @example
+ * const postHTML = createPost({
+ *   id: 1,
+ *   title: "Закат",
+ *   images: [101, 102],
+ *   username: "Анна",
+ *   created_at: "2025-01-01"
+ * });
+ * document.body.innerHTML += postHTML;
+ */
 export function createPost(post) {
-    const imageUrl = process.env.IS_URL;   
-    
     let sliderImages = "<div>"
 
-    // todo в src вставить ${process.env.IS_URL}/api/images/${imageId}"
-    //const test = 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSPshUBFBR7xshIaXFc_ir-eagtAueBv7aX5Nvxdny6qg&s'
-
     for(const imageId of post.images || []) {
-        sliderImages += `<img id="image_${imageId}" src="${process.env.IS_URL}/api/images/${imageId}"" class="postImage">`
+        sliderImages += `<img alt="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSPshUBFBR7xshIaXFc_ir-eagtAueBv7aX5Nvxdny6qg&s" 
+            id="image_${imageId}" src="${process.env.IS_URL}/api/images/${imageId}"" class="postImage">`
     }
     sliderImages += "</div>"
 

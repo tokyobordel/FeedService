@@ -1,3 +1,36 @@
+/**
+ * Инициализирует обработчики событий для модального окна загрузки постов с изображениями.
+ *
+ * Привязывает события:
+ * - Открытие модального окна по клику на кнопку `#btnUpload`.
+ * - Закрытие по клику на элемент `.close` внутри модального окна.
+ * - Отображение списка выбранных файлов с валидацией при изменении `#fileInput`.
+ * - Асинхронная отправка формы `#uploadForm` с проверкой полей.
+ *
+ * Правила валидации файлов:
+ * - Не более 3 изображений.
+ * - Размер каждого файла ≤ 2 МБ.
+ * - Допускаются только MIME-типы, начинающиеся с `image/`.
+ *
+ * При успешной загрузке вызывает глобальные функции:
+ * - {@link window.closeModal} для закрытия модального окна.
+ * - {@link window.reloadFeed} для обновления ленты.
+ *
+ * Ошибки выводятся в элемент `#uploadError`.
+ *
+ * @function initUploadHandlers
+ * @global
+ * @requires HTML-элементы с id: `btnUpload`, `uploadModal`, `uploadForm`,
+ *           `fileInput`, `fileList`, `uploadError`, `postTitle`, `postDescription`.
+ * @requires window.openModal - функция для открытия переданного модального окна.
+ * @requires window.closeModal - функция для закрытия переданного модального окна.
+ * @requires window.reloadFeed - функция для обновления ленты после успешной загрузки.
+ * @returns {void}
+ *
+ * @example
+ * // Вызов после загрузки DOM
+ * document.addEventListener('DOMContentLoaded', initUploadHandlers);
+ */
 export function initUploadHandlers() {
     const uploadBtn = document.getElementById('btnUpload');
     const uploadModal = document.getElementById('uploadModal');
