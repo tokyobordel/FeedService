@@ -1,3 +1,30 @@
+/**
+ * Инициализирует обработчик отправки формы регистрации (`#signupForm`).
+ *
+ * Выполняет клиентскую валидацию:
+ * - Все поля (логин, email, пароль, подтверждение) обязательны.
+ * - Пароль и подтверждение должны совпадать.
+ * - Email должен соответствовать паттерну `/^[^\s@]+@[^\s@]+\.[^\s@]+$/`.
+ *
+ * При успешной регистрации вызывает {@link closeModal} для закрытия модального окна
+ * (предполагается, что форма находится внутри модального окна, на которое ссылается
+ * глобальная переменная `signupModal`).
+ *
+ * Ошибки (сетевые, API или валидации) выводятся в элемент `#signupError`.
+ *
+ * @function initSignupHandlers
+ * @global
+ * @requires HTML-элементы с id: `signupForm`, `signupError`, `signupUsername`,
+ *           `signupEmail`, `signupPassword`, `signupConfirm`.
+ * @requires {HTMLElement} signupModal - глобальная переменная, содержащая
+ *           DOM-элемент модального окна, которое будет закрыто после успешной регистрации.
+ * @requires closeModal - глобальная функция для закрытия модального окна.
+ * @returns {void}
+ *
+ * @example
+ * // Вызов после загрузки DOM
+ * document.addEventListener('DOMContentLoaded', initSignupHandlers);
+ */
 export function initSignupHandlers() {
     const signupForm = document.getElementById('signupForm');
     const signupError = document.getElementById('signupError');

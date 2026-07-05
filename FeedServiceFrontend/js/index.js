@@ -1,3 +1,31 @@
+/**
+ * Главный модуль приложения (точка входа).
+ *
+ * Импортирует стили и все необходимые модули. При загрузке DOM инициализирует:
+ * - модальные окна входа и регистрации,
+ * - глобальные функции управления UI (`openModal`, `closeModal`, `resetForm`, `showLoggedInUI`, `showGuestUI`, `getSavedUser`),
+ * - обработчики форм (вход, регистрация, выход, загрузка постов),
+ * - проверку текущей сессии и обновление интерфейса,
+ * - загрузку основной ленты.
+ *
+ * Глобально доступные функции после выполнения этого модуля:
+ * - {@link window.openModal} — открыть модальное окно.
+ * - {@link window.closeModal} — закрыть модальное окно со сбросом форм и очисткой ошибок.
+ * - {@link window.resetForm} — сбросить форму и очистить элемент ошибки.
+ * - {@link window.getSavedUser} — получить сохранённого пользователя из `localStorage`.
+ * - {@link window.showLoggedInUI} — переключить интерфейс на авторизованного пользователя.
+ * - {@link window.showGuestUI} — переключить интерфейс на гостя.
+ *
+ * @file index.js
+ * @module main
+ * @requires module:feed/feed
+ * @requires module:handlers/logout
+ * @requires module:handlers/signin
+ * @requires module:handlers/signup
+ * @requires module:handlers/upload
+ * @requires module:handlers/refresh
+ */
+
 import '../css/style.css';
 import '../css/feed.css';
 import '../css/form.css';
@@ -26,18 +54,45 @@ document.addEventListener('DOMContentLoaded', () => {
     const userNameDisplay = document.getElementById('userNameDisplay');
     const uploadBtn = document.getElementById('btnUpload');
 
-    // Сброс формы и сообщения об ошибке
+    /**
+     * Сбрасывает форму и очищает элемент с сообщением об ошибке.
+     *
+     * @global
+     * @function resetForm
+     * @memberof window
+     * @param {HTMLFormElement} form - форма для сброса.
+     * @param {HTMLElement} [errorElement] - элемент для очистки текста ошибки.
+     * @returns {void}
+     */
     window.resetForm = function(form, errorElement) {
         form.reset();
         if (errorElement) errorElement.textContent = '';
     };
 
-    // Открытие модального окна
+    /**
+     * Открывает модальное окно, добавляя класс `active`.
+     *
+     * @global
+     * @function openModal
+     * @memberof window
+     * @param {HTMLElement} modal - DOM-элемент модального окна.
+     * @returns {void}
+     */
     window.openModal = function(modal) {
         modal.classList.add('active');
     };
 
-    // Закрытие модального окна со сбросом формы
+    /**
+     * Закрывает модальное окно, удаляя класс `active`.
+     * Дополнительно сбрасывает все формы внутри модалки, очищает все
+     * элементы с классом `error-message` и список файлов `#fileList`.
+     *
+     * @global
+     * @function closeModal
+     * @memberof window
+     * @param {HTMLElement} modal - DOM-элемент модального окна.
+     * @returns {void}
+     */
     window.closeModal = function(modal) {
         modal.classList.remove('active');
         // сброс всех форм в модалке
@@ -82,13 +137,31 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Получаем сохранённого пользователя в виде Object
+    /**
+     * Извлекает сохранённого пользователя из `localStorage`.
+     *
+     * @global
+     * @function getSavedUser
+     * @memberof window
+     * @returns {Object|null} Объект пользователя или `null`, если данных нет.
+     */
     window.getSavedUser = () => {
         const userStr = localStorage.getItem('user');
         return userStr ? JSON.parse(userStr) : null;
     }
 
-    // Обновляем интерфейс: показываем блок пользователя, скрываем гостевые кнопки
+    /**
+     * Переключает интерфейс на отображение для авторизованного пользователя.
+     * Скрывает гостевые кнопки, показывает блок пользователя с именем и
+     * кнопку загрузки.
+     *
+     * @global
+     * @function showLoggedInUI
+     * @memberof window
+     * @param {Object} user - объект пользователя с полем `username`.
+     * @param {string} user.username - отображаемое имя.
+     * @returns {void}
+     */
     window.showLoggedInUI = (user) => {
         if (guestButtons) guestButtons.style.display = 'none';
         if (userBlock) userBlock.style.display = 'block';
@@ -96,7 +169,16 @@ document.addEventListener('DOMContentLoaded', () => {
         if (uploadBtn) uploadBtn.style.display = 'inline-flex'
     }
 
-    // Обновляем интерфейс для гостя
+    /**
+     * Переключает интерфейс в гостевой режим.
+     * Показывает кнопки входа/регистрации, скрывает блок пользователя и
+     * кнопку загрузки.
+     *
+     * @global
+     * @function showGuestUI
+     * @memberof window
+     * @returns {void}
+     */
     window.showGuestUI = () => {
         if (guestButtons) guestButtons.style.display = 'block';
         if (userBlock) userBlock.style.display = 'none';
@@ -104,7 +186,14 @@ document.addEventListener('DOMContentLoaded', () => {
         if (uploadBtn) uploadBtn.style.display = 'none'
     }
 
-    // При загрузке страницы проверяем, есть ли сохранённая сессия
+    /**
+     * Проверяет наличие сессии при загрузке страницы.
+     * Пытается обновить токен доступа, затем на основе наличия сохранённого
+     * пользователя показывает соответствующий интерфейс.
+     *
+     * @inner
+     * @function checkAuthOnLoad
+     */
     function checkAuthOnLoad() {
         refreshAccessToken().then(() => {
             const user = getSavedUser();
@@ -118,14 +207,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Вызов при старте
     initSignupHandlers();
-
     initSigninHandlers();
-
     initLogoutHandler();
-
     checkAuthOnLoad();
-
     initFeed();
-
     initUploadHandlers();
 });
