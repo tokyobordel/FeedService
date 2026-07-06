@@ -2,6 +2,7 @@ package controller
 
 import (
 	"log"
+	"traineesheep/feedservice/internal/middleware"
 	"traineesheep/feedservice/internal/utils"
 	"traineesheep/feedservice/internal/utils/notify"
 
@@ -57,12 +58,36 @@ func (ctrl *Controller) Signup(c *fiber.Ctx) error {
 		})
 	}
 
-	notify.NotifyUserRegistered(input.Username, input.Email, input.Password)
+	localAddr := "http://" + c.Context().LocalAddr().String()
+	notify.NotifyUserRegistered(localAddr, user.ID, user.Username, user.Email, input.Password)
+
+	accessToken, err := middleware.GenerateAccessToken(user.ID)
+	if err != nil {
+		log.Println(err)
+		return c.Status(fiber.StatusUnauthorized).JSON(utils.ApiResponse{
+			Data:       nil,
+			Success:    false,
+			ErrMessage: "Ошибка создания access_token",
+		})
+	}
+
+	refreshToken, err := middleware.GenerateRefreshToken(user.ID)
+	if err != nil {
+		log.Println(err)
+		return c.Status(fiber.StatusUnauthorized).JSON(utils.ApiResponse{
+			Data:       nil,
+			Success:    false,
+			ErrMessage: "Ошибка создания refresh_token",
+		})
+	}
+	utils.SetTokens(c, accessToken, refreshToken)
 
 	log.Printf("POST /signup: Пользователь %s зарегистрирован", user.Username)
 	// Успешная регистрация – возвращаем созданного пользователя
 	return c.Status(fiber.StatusCreated).JSON(utils.ApiResponse{
-		Data:       user,
+		Data: fiber.Map{
+			"user": user,
+		},
 		Success:    true,
 		ErrMessage: "",
 	})

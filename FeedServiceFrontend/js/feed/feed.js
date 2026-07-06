@@ -84,7 +84,7 @@ export function initFeed() {
     function loadMainFeed() {
         currentUserFeed = null;
         allPostsBtn.style.display = 'none';
-        userNameDisplay.style.display = 'inline'
+        userNameDisplay.style.display = 'inline-block'
         fetchPosts('/api/feed');
     }
 
@@ -99,7 +99,7 @@ export function initFeed() {
      */
     window.loadUserFeed = (userId) => {
         currentUserFeed = userId;
-        allPostsBtn.style.display = 'inline-block';
+        allPostsBtn.style.display = 'inline';
         userNameDisplay.style.display = 'none'
         fetchPosts(`/api/feed?user_id=${userId}`);
     }
@@ -116,11 +116,14 @@ export function initFeed() {
 
     // Клик по нику в хедере
     const userNameDisplay = document.getElementById('userNameDisplay');
+    const confirmModal = document.getElementById('confirmModal');
     if (userNameDisplay) {
         userNameDisplay.addEventListener('click', () => {
             const user = JSON.parse(localStorage.getItem('user') || '{}');
-            if (user && user.id) {
+            if (user && user.id && user.is_confirmed) {
                 loadUserFeed(user.id);
+            } else {
+                openModal(confirmModal)
             }
         });
     }

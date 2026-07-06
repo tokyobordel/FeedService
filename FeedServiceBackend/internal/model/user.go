@@ -10,9 +10,10 @@ import (
 // Пароль (Password) не сериализуется в JSON (json:"-") и предназначен
 // только для внутренней обработки.
 type User struct {
-	ID        int       `json:"id"`
-	Username  string    `json:"username"`
-	Email     string    `json:"email"`
-	CreatedAt time.Time `json:"post_id"` // Примечание: тег json:"post_id" вероятно ошибочен, должно быть "created_at"
-	Password  string    `json:"-"`
+	ID          int       `json:"id"`
+	Username    string    `json:"username"`
+	Email       string    `json:"email"`
+	IsConfirmed bool      `json:"is_confirmed"`
+	CreatedAt   time.Time `json:"created_at"`
+	Password    string    `json:"-"`
 }

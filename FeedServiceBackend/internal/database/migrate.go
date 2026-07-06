@@ -25,6 +25,7 @@ func Migrate(db *sql.DB) {
 			username VARCHAR(255) NOT NULL,
 			password VARCHAR(255) NOT NULL,
 			email VARCHAR(255) NOT NULL,
+		    is_confirmed BOOLEAN DEFAULT FALSE,
 			created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW()
 	);`
 

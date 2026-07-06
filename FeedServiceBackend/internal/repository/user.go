@@ -61,9 +61,9 @@ func (ud *UserDAO) ExistsByUsername(username string) (bool, error) {
 func (ud *UserDAO) GetByUsername(username string) (models.User, error) {
 	var user models.User
 	err := ud.db.QueryRow(
-		"SELECT id, username, password, created_at FROM users WHERE username = $1",
+		"SELECT id, username, password, created_at, is_confirmed FROM users WHERE username = $1",
 		username,
-	).Scan(&user.ID, &user.Username, &user.Password, &user.CreatedAt)
+	).Scan(&user.ID, &user.Username, &user.Password, &user.CreatedAt, &user.IsConfirmed)
 
 	return user, err
 }
@@ -73,9 +73,19 @@ func (ud *UserDAO) GetByUsername(username string) (models.User, error) {
 func (ud *UserDAO) GetByID(userID int) (models.User, error) {
 	var user models.User
 	err := ud.db.QueryRow(
-		"SELECT id, username, password, created_at FROM users WHERE id = $1",
+		"SELECT id, username, password, created_at, is_confirmed, email FROM users WHERE id = $1",
 		userID,
-	).Scan(&user.ID, &user.Username, &user.Password, &user.CreatedAt)
+	).Scan(&user.ID, &user.Username, &user.Password, &user.CreatedAt, &user.IsConfirmed, &user.Email)
 
 	return user, err
+}
+
+// ConfirmUserAccount подтверждает регистрацию пользователя.
+func (ud *UserDAO) ConfirmUserAccount(userID int) error {
+	err := ud.db.QueryRow(
+		"UPDATE users SET is_confirmed = TRUE WHERE id = $1;",
+		userID,
+	).Err()
+
+	return err
 }

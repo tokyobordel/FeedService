@@ -129,6 +129,9 @@ h2 {
     .modal-content {
         padding: 1.5rem;
     }
+    #userNameDisplay {
+        max-width: 50px;
+    }
 }
 
 .user-name {
@@ -139,8 +142,16 @@ h2 {
 
 #userNameDisplay {
     cursor: pointer;
+    max-width: 150px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .logo {
     cursor: pointer;
+}
+
+.not-confirmed {
+    color: var(--error);
 }

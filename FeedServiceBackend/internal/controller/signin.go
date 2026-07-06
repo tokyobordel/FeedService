@@ -78,25 +78,7 @@ func (ctrl *Controller) Signin(c *fiber.Ctx) error {
 	}
 
 	// Устанавливаем refresh_token и access_token в HttpOnly Secure куку
-	c.Cookie(&fiber.Cookie{
-		Name:     "refresh_token",
-		Value:    refreshToken,
-		HTTPOnly: true,
-		Secure:   false,
-		SameSite: "Strict",
-		Path:     "/",
-		MaxAge:   10 * 60,
-	})
-
-	c.Cookie(&fiber.Cookie{
-		Name:     "access_token",
-		Value:    accessToken,
-		HTTPOnly: true,
-		Secure:   false,
-		SameSite: "Strict",
-		Path:     "/",
-		MaxAge:   5 * 60,
-	})
+	utils.SetTokens(c, accessToken, refreshToken)
 
 	notify.NotifyLogin(input.Username, input.Email)
 

@@ -66,3 +66,27 @@ func ParseUserData(c *fiber.Ctx, validateEmail bool) (UserData, error) {
 
 	return input, nil
 }
+
+func SetTokens(c *fiber.Ctx, accessToken string, refreshToken string) error {
+	c.Cookie(&fiber.Cookie{
+		Name:     "refresh_token",
+		Value:    refreshToken,
+		HTTPOnly: true,
+		Secure:   false,
+		SameSite: "Strict",
+		Path:     "/",
+		MaxAge:   10 * 60,
+	})
+
+	c.Cookie(&fiber.Cookie{
+		Name:     "access_token",
+		Value:    accessToken,
+		HTTPOnly: true,
+		Secure:   false,
+		SameSite: "Strict",
+		Path:     "/",
+		MaxAge:   5 * 60,
+	})
+
+	return nil
+}
