@@ -1,14 +1,38 @@
-import './styles/main.css';
-import './styles/layout.css';
-import './styles/components.css';
+/**
+ * @fileoverview Основной файл фронтенда сервиса уведомлений
+ * @author Разработчик
+ * @version 1.0.0
+ */
 
+/**
+ * Флаг состояния сохранения настроек
+ * @type {boolean}
+ */
 let isSaving = false;
+
+/**
+ * Массив пользовательских строк настроек
+ * @type {Array}
+ */
 let customRows = [];
+
+/**
+ * ID редактируемой строки
+ * @type {number|null}
+ */
 let editingRowId = null;
 
-// Массив предопределенных типов для отслеживания
+/**
+ * Массив предопределенных типов уведомлений
+ * @type {string[]}
+ */
 const predefinedTypes = ["user_register", "user_login", "admin_newImg", "user_imgVerdict"];
 
+/**
+ * Инициализация системы уведомлений
+ * @function initNotifications
+ * @returns {void}
+ */
 (function initNotifications() {    
     const HEIGHT = 80;             
     const GAP = 20;                
@@ -24,6 +48,10 @@ const predefinedTypes = ["user_register", "user_login", "admin_newImg", "user_im
 
     const notifications = []; 
 
+    /**
+     * Рендеринг уведомлений
+     * @returns {void}
+     */
     function render() {
         notifications.forEach((item, index) => {
             const bottomPos = BOTTOM_OFFSET + index * (HEIGHT + GAP);
@@ -32,6 +60,10 @@ const predefinedTypes = ["user_register", "user_login", "admin_newImg", "user_im
         });
     }
 
+    /**
+     * Удаление старых уведомлений
+     * @returns {void}
+     */
     function removeOldest() {
         if (notifications.length === 0) return;
 
@@ -51,6 +83,13 @@ const predefinedTypes = ["user_register", "user_login", "admin_newImg", "user_im
         render(); 
     }
 
+    /**
+     * Отображение уведомления
+     * @param {string} type - Тип уведомления (success/error)
+     * @param {string} title - Заголовок уведомления
+     * @param {string} description - Описание уведомления
+     * @returns {void}
+     */
     window.showNotification = function(type, title, description) {
         if (!template) return;
 
@@ -96,7 +135,12 @@ const predefinedTypes = ["user_register", "user_login", "admin_newImg", "user_im
     };
 })();
 
-// Функция для получения настроек из базы
+/**
+ * Получение настроек уведомлений с сервера
+ * @async
+ * @function GetSettings
+ * @returns {Promise<void>}
+ */
 async function GetSettings() {
     console.log("GetSettings called");
     try {
@@ -104,7 +148,6 @@ async function GetSettings() {
         const result = await response.json();
         console.log('Result:', result);
 
-        // Очищаем пользовательские строки
         customRows = [];
 
         if (!result.data || !Array.isArray(result.data)) {
@@ -116,7 +159,6 @@ async function GetSettings() {
 
         const data = result.data;
 
-        // Обрабатываем предопределенные типы
         data.forEach((item) => {
             if (predefinedTypes.includes(item.notify_type)) {
                 const notify_type = item.notify_type;
@@ -142,7 +184,6 @@ async function GetSettings() {
                         break;
                 }
             } else {
-                // Добавляем как пользовательскую строку
                 customRows.push({
                     id: Date.now() + Math.random(),
                     notify_type: item.notify_type,
@@ -154,7 +195,6 @@ async function GetSettings() {
             }
         });
 
-        // Собираем все уникальные URL
         const allUrls = [];
         data.forEach(item => {
             const urls = item.webhook_urls || [];
@@ -169,15 +209,12 @@ async function GetSettings() {
         });
         webhookUrls = allUrls;
 
-        // Пересоздаём мультиселекты
         multiselectInstances = [];
         initAllMultiselects();
 
-        // Рендерим таблицу URL и пользовательские строки
         renderWebhookTable();
         renderCustomRows();
 
-        // Обновляем отображение мультиселектов
         updateAllMultiselects();
 
     } catch (error) {
@@ -187,9 +224,18 @@ async function GetSettings() {
     }
 }
 
+/**
+ * Объект хранения выбранных вебхуков для каждого типа уведомлений
+ * @type {Object}
+ */
 let webhookSelections = {};
 
-// Функция для сохранения настроек
+/**
+ * Сохранение настроек уведомлений на сервере
+ * @async
+ * @function CompleteSetup
+ * @returns {Promise<void>}
+ */
 async function CompleteSetup() {
     console.log('CompleteSetup called', new Date().toISOString());
     if (isSaving) return;
@@ -202,12 +248,10 @@ async function CompleteSetup() {
         return;
     }
 
-    // Базовые данные для предопределенных типов
     let payload = {
         "data": []
     };
 
-    // Добавляем предопределенные типы
     predefinedTypes.forEach(type => {
         let emailId, tgId;
         switch(type) {
@@ -231,13 +275,12 @@ async function CompleteSetup() {
 
         payload.data.push({
             "notify_type": type,
-            "want_email": document.getElementById(emailId).checked,
-            "want_telegram": document.getElementById(tgId).checked,
+            "want_email": document.getElementById(emailId) ? document.getElementById(emailId).checked : false,
+            "want_telegram": document.getElementById(tgId) ? document.getElementById(tgId).checked : false,
             "webhook_urls": webhookSelections[type] || []
         });
     });
 
-    // Добавляем пользовательские строки
     customRows.forEach(row => {
         if (row.notify_type && row.description) {
             payload.data.push({
@@ -273,7 +316,11 @@ async function CompleteSetup() {
     }
 }
 
-// Удаляет из webhookSelections URL, которых нет в webhookUrls
+/**
+ * Очистка устаревших выборов вебхуков
+ * @function cleanupSelections
+ * @returns {void}
+ */
 function cleanupSelections() {
     const currentUrls = new Set(webhookUrls);
     Object.keys(webhookSelections).forEach(notifyType => {
@@ -281,6 +328,13 @@ function cleanupSelections() {
     });
 }
 
+/**
+ * Создание мультиселекта для выбора вебхуков
+ * @function createMultiselect
+ * @param {HTMLElement} container - Контейнер для мультиселекта
+ * @param {string} notifyType - Тип уведомления
+ * @returns {Object} Объект с методами мультиселекта
+ */
 function createMultiselect(container, notifyType) {
     if (!webhookSelections[notifyType]) {
         webhookSelections[notifyType] = [];
@@ -303,6 +357,10 @@ function createMultiselect(container, notifyType) {
     const optionsPanel = document.createElement('div');
     optionsPanel.className = 'select-options';
 
+    /**
+     * Рендеринг опций мультиселекта
+     * @returns {void}
+     */
     function renderOptions() {
         optionsPanel.innerHTML = '';
         if (webhookUrls.length === 0) {
@@ -360,6 +418,10 @@ function createMultiselect(container, notifyType) {
         });
     }
 
+    /**
+     * Обновление отображаемого текста мультиселекта
+     * @returns {void}
+     */
     function updateDisplayText() {
         const selected = webhookSelections[notifyType] || [];
         if (selected.length === 0) {
@@ -371,6 +433,11 @@ function createMultiselect(container, notifyType) {
         }
     }
 
+    /**
+     * Переключение видимости панели опций
+     * @param {boolean} [forceState] - Принудительное состояние
+     * @returns {void}
+     */
     function togglePanel(forceState) {
         if (typeof forceState === 'boolean') {
             wrapper.classList.toggle('open', forceState);
@@ -410,9 +477,17 @@ function createMultiselect(container, notifyType) {
     };
 }
 
-// Глобальный массив для хранения объектов мультиселектов
+/**
+ * Массив экземпляров мультиселектов
+ * @type {Array}
+ */
 let multiselectInstances = [];
 
+/**
+ * Инициализация всех мультиселектов на странице
+ * @function initAllMultiselects
+ * @returns {void}
+ */
 function initAllMultiselects() {
     const containers = document.querySelectorAll('.webhook-multiselect-container');
     multiselectInstances = [];
@@ -423,16 +498,24 @@ function initAllMultiselects() {
     });
 }
 
-// Функция обновления всех мультиселектов при изменении списка URL
+/**
+ * Обновление всех мультиселектов
+ * @function updateAllMultiselects
+ * @returns {void}
+ */
 function updateAllMultiselects() {
-    cleanupSelections(); // удаляем устаревшие URL из выбранных
+    cleanupSelections();
     multiselectInstances.forEach(({ instance }) => {
         instance.renderOptions();
         instance.updateDisplayText();
     });
 }
 
-// Функция для анимации закрытия всплывающего окна входа в аккаунт
+/**
+ * Закрытие модального окна авторизации
+ * @function closeModal
+ * @returns {void}
+ */
 function closeModal() {
     let modal_window = document.getElementById('modalWindow');
     let black_background = document.getElementById('blackBackground');
@@ -440,7 +523,6 @@ function closeModal() {
     modal_window.classList.add('closed');
     black_background.classList.remove('open');
     black_background.classList.add('closed');
-    // Сброс инлайновых стилей (на случай, если они остались)
     modal_window.style.zIndex = '';
     modal_window.style.opacity = '';
     black_background.style.pointerEvents = '';
@@ -448,7 +530,11 @@ function closeModal() {
     black_background.style.backdropFilter = '';
 }
 
-// Функция для анимации открытия всплывающего окна входа в аккаунт
+/**
+ * Открытие модального окна авторизации
+ * @function openModal
+ * @returns {void}
+ */
 function openModal() {
     let modal_window = document.getElementById('modalWindow');
     let black_background = document.getElementById('blackBackground');
@@ -456,7 +542,6 @@ function openModal() {
     modal_window.classList.add('open');
     black_background.classList.remove('closed');
     black_background.classList.add('open');
-    // Сброс инлайновых стилей, чтобы классы работали
     modal_window.style.zIndex = '';
     modal_window.style.opacity = '';
     black_background.style.pointerEvents = '';
@@ -464,42 +549,60 @@ function openModal() {
     black_background.style.backdropFilter = '';
 }
 
-// Функция для процедуры входа в аккаунт
+/**
+ * Процедура авторизации пользователя
+ * @async
+ * @function loginProcedure
+ * @returns {Promise<void>}
+ */
 async function loginProcedure() {
     let login_value = document.getElementById('login_field').value.trim();
     let password_value = document.getElementById('password_field').value.trim();
+
+    if (!login_value || !password_value) {
+        showNotification('error', 'Ошибка', 'Заполните все поля');
+        return;
+    }
 
     const payload = {
         "login": login_value,
         "password": password_value
     }
 
-    const response = await fetch("/api/moderator_login", {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-    }
-    )
+    try {
+        const response = await fetch("/api/moderator_login", {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
 
-    const result = await response.json();
-    console.log(result)
-    if (result.success == true) {
-        console.log("Вход успешен!");
-        localStorage.setItem('token', result.token)
-        isLogged = true;
-        document.getElementById('not_Logged').style.display = "none";
-        document.getElementById('isAuthorized').style.display = "block";
-        closeModal();
-        showNotification('success', 'Успех!', 'Успешный вход');
-        GetSettings();
-    } else {
-        console.log("Неправильные данные!");
-        showNotification('error', 'Ошибка', result.Error_message);
+        const result = await response.json();
+        console.log(result);
+        if (result.success == true) {
+            console.log("Вход успешен!");
+            localStorage.setItem('token', result.token);
+            isLogged = true;
+            document.getElementById('not_Logged').style.display = "none";
+            document.getElementById('isAuthorized').style.display = "block";
+            closeModal();
+            showNotification('success', 'Успех!', 'Успешный вход');
+            GetSettings();
+        } else {
+            console.log("Неправильные данные!");
+            showNotification('error', 'Ошибка', result.Error_message || 'Неверный логин или пароль');
+        }
+    } catch (error) {
+        console.error('Login error:', error);
+        showNotification('error', 'Ошибка', 'Ошибка при попытке входа');
     }
 }
 
-// Функция для процедуры выхода из аккаунта
-
+/**
+ * Процедура выхода пользователя
+ * @async
+ * @function logoutProcedure
+ * @returns {Promise<void>}
+ */
 async function logoutProcedure() {
     localStorage.removeItem('token');
     isLogged = false;
@@ -510,54 +613,76 @@ async function logoutProcedure() {
     document.getElementById('not_Logged').style.display = "flex";
     document.getElementById('isAuthorized').style.display = "none";
 
-    // Сбрасываем данные
     webhookUrls = [];
     webhookSelections = {};
     multiselectInstances = [];
-    // Пересоздаём пустые мультиселекты
     initAllMultiselects();
-    renderWebhookTable(); // таблица станет пустой
+    renderWebhookTable();
 
     console.log("Выход успешен!");
     closeModal();
     showNotification('success', 'Успех', 'Выход из аккаунта успешен!');
 }
 
-// Функция для добавления хедера Authorization
+/**
+ * Выполнение fetch запроса с авторизацией
+ * @function fetchWithAuth
+ * @param {string} url - URL для запроса
+ * @param {Object} [options={}] - Опции запроса
+ * @returns {Promise<Response>} Promise с ответом
+ */
 function fetchWithAuth(url, options={}) {
-    const token = localStorage.getItem('token')
+    const token = localStorage.getItem('token');
 
     if (token) {
         options.headers = {
             ...options.headers,
             'Authorization': `Bearer ${token}`
-        }
+        };
     }
 
-    return fetch(url, options)
+    return fetch(url, options);
 }
 
+/**
+ * Восстановление состояния авторизации
+ * @function restoreAuthState
+ * @returns {void}
+ */
 function restoreAuthState() {
-    const token = localStorage.getItem('token')
+    const token = localStorage.getItem('token');
     
     if (token) {
-        isLogged = true
+        isLogged = true;
         document.getElementById('not_Logged').style.display = "none";
         document.getElementById('isAuthorized').style.display = "block";
-        console.log("Добро пожаловать, admin")
+        console.log("Добро пожаловать, admin");
         initAllMultiselects();
-        GetSettings()
+        GetSettings();
     } else {
-        isLogged = false
+        isLogged = false;
         document.getElementById('not_Logged').style.display = "flex";
         document.getElementById('isAuthorized').style.display = "none";
     }
 }
 
-// ========== Управление списком вебхуков ==========
-let webhookUrls = [];          // массив сохранённых URL
-let editingIndex = null;      // индекс редактируемой строки
+/**
+ * Массив URL вебхуков
+ * @type {string[]}
+ */
+let webhookUrls = [];
 
+/**
+ * Индекс редактируемой строки вебхуков
+ * @type {number|null}
+ */
+let editingIndex = null;
+
+/**
+ * Рендеринг таблицы вебхуков
+ * @function renderWebhookTable
+ * @returns {void}
+ */
 function renderWebhookTable() {
     const tbody = document.getElementById('webhookTableBody');
     if (!tbody) {
@@ -565,7 +690,6 @@ function renderWebhookTable() {
         return;
     }
 
-    // Строим список строк: все сохранённые + одна пустая (если не редактируется существующая)
     const rows = [];
     webhookUrls.forEach((url, index) => {
         const isEditing = (editingIndex === index);
@@ -584,7 +708,6 @@ function renderWebhookTable() {
         const container = document.createElement('div');
         container.className = 'webhook-row';
 
-        // Поле ввода
         const input = document.createElement('input');
         input.type = 'text';
         input.className = 'webhook-url-input';
@@ -593,9 +716,7 @@ function renderWebhookTable() {
         input.disabled = !row.isEditing && !row.isNew;
         container.appendChild(input);
 
-        // ---- Кнопки ----
         if (row.isNew && !row.isEditing) {
-            // Новая пустая строка
             const saveBtn = document.createElement('button');
             saveBtn.className = 'webhook-action-btn save';
             saveBtn.textContent = '✓';
@@ -611,6 +732,12 @@ function renderWebhookTable() {
                 e.stopPropagation();
                 const val = input.value.trim();
                 if (!val) return;
+                
+                if (webhookUrls.includes(val)) {
+                    showNotification('error', 'Ошибка', 'Такой URL уже существует');
+                    return;
+                }
+                
                 webhookUrls.push(val);
                 editingIndex = null;
                 renderWebhookTable();
@@ -619,9 +746,7 @@ function renderWebhookTable() {
 
             container.appendChild(saveBtn);
         } else if (!row.isNew) {
-            // Существующий URL
             if (row.isEditing) {
-                // Режим редактирования – кнопка "сохранить изменения"
                 const saveEditBtn = document.createElement('button');
                 saveEditBtn.className = 'webhook-action-btn save';
                 saveEditBtn.textContent = '✓';
@@ -634,6 +759,12 @@ function renderWebhookTable() {
                         showNotification('error', 'Ошибка', 'URL не может быть пустым');
                         return;
                     }
+                    
+                    if (val !== webhookUrls[row.index] && webhookUrls.includes(val)) {
+                        showNotification('error', 'Ошибка', 'Такой URL уже существует');
+                        return;
+                    }
+                    
                     webhookUrls[row.index] = val;
                     editingIndex = null;
                     renderWebhookTable();
@@ -641,7 +772,6 @@ function renderWebhookTable() {
                 });
                 container.appendChild(saveEditBtn);
             } else {
-                // Обычный режим – редактировать и удалить
                 const editBtn = document.createElement('button');
                 editBtn.className = 'webhook-action-btn edit';
                 editBtn.textContent = '✎';
@@ -680,14 +810,17 @@ function renderWebhookTable() {
 
         td.appendChild(container);
         tr.appendChild(td);
-        // Сохраняем индекс строки для поиска при фокусе
         tr.dataset.index = row.index;
         tbody.appendChild(tr);
     });
     updateAllMultiselects();
 }
 
-// Функция для добавления пользовательской строки
+/**
+ * Добавление пользовательской строки настроек
+ * @function addCustomRow
+ * @returns {void}
+ */
 function addCustomRow() {
     const newRow = {
         id: Date.now() + Math.random(),
@@ -704,20 +837,29 @@ function addCustomRow() {
     editingRowId = newRow.id;
     renderCustomRows();
     
-    // Фокус на первое поле ввода
     setTimeout(() => {
         const firstInput = document.querySelector(`tr[data-id="${newRow.id}"] input`);
         if (firstInput) firstInput.focus();
     }, 100);
 }
 
-// Функция для удаления пользовательской строки
+/**
+ * Удаление пользовательской строки настроек
+ * @function deleteCustomRow
+ * @param {number} id - ID строки для удаления
+ * @returns {void}
+ */
 function deleteCustomRow(id) {
     customRows = customRows.filter(row => row.id !== id);
     renderCustomRows();
 }
 
-// Функция для удаления предопределенного параметра
+/**
+ * Удаление предопределенного параметра
+ * @function deletePredefinedRow
+ * @param {string} notifyType - Тип уведомления для удаления
+ * @returns {void}
+ */
 function deletePredefinedRow(notifyType) {
     customRows = customRows.filter(row => row.notify_type !== notifyType);
     delete webhookSelections[notifyType];
@@ -725,7 +867,14 @@ function deletePredefinedRow(notifyType) {
     renderCustomRows();
 }
 
-// Функция для обновления значения в пользовательской строке (без перерисовки)
+/**
+ * Обновление значения в пользовательской строке
+ * @function updateCustomRow
+ * @param {number} id - ID строки
+ * @param {string} field - Поле для обновления
+ * @param {*} value - Новое значение
+ * @returns {void}
+ */
 function updateCustomRow(id, field, value) {
     const row = customRows.find(r => r.id === id);
     if (row) {
@@ -736,28 +885,28 @@ function updateCustomRow(id, field, value) {
     }
 }
 
-// Функция отрисовки пользовательских строк
+/**
+ * Рендеринг пользовательских строк настроек
+ * @function renderCustomRows
+ * @returns {void}
+ */
 function renderCustomRows() {
     const table = document.querySelector('.table_main');
     
-    // Удаляем существующие пользовательские строки
     const existingCustomRows = document.querySelectorAll('.custom-row');
     existingCustomRows.forEach(row => row.remove());
     
-    // Добавляем пользовательские строки
     customRows.forEach((row) => {
         const tr = document.createElement('tr');
         tr.className = 'custom-row';
         tr.dataset.id = row.id;
         
-        // Ячейка с названием
         const nameCell = document.createElement('td');
         nameCell.style.border = '1px solid transparent';
         nameCell.style.padding = '8px';
         nameCell.style.textAlign = 'left';
         
         if (row.isNew || editingRowId === row.id) {
-            // Режим редактирования - показываем поля ввода
             const nameInput = document.createElement('input');
             nameInput.type = 'text';
             nameInput.className = 'custom-row-input';
@@ -768,13 +917,11 @@ function renderCustomRows() {
             });
             nameCell.appendChild(nameInput);
         } else {
-            // Режим просмотра - показываем текст
             const nameText = document.createElement('span');
             nameText.textContent = row.description || '';
             nameCell.appendChild(nameText);
         }
         
-        // Ячейка с ID параметра
         const idCell = document.createElement('td');
         idCell.style.border = '1px solid transparent';
         idCell.style.padding = '8px';
@@ -796,7 +943,6 @@ function renderCustomRows() {
             idCell.appendChild(idText);
         }
         
-        // Ячейка Telegram
         const tgCell = document.createElement('td');
         tgCell.style.border = '1px solid transparent';
         tgCell.style.padding = '8px';
@@ -808,7 +954,6 @@ function renderCustomRows() {
         });
         tgCell.appendChild(tgCheckbox);
         
-        // Ячейка Email
         const emailCell = document.createElement('td');
         emailCell.style.border = '1px solid transparent';
         emailCell.style.padding = '8px';
@@ -820,7 +965,6 @@ function renderCustomRows() {
         });
         emailCell.appendChild(emailCheckbox);
         
-        // Ячейка Webhook
         const webhookCell = document.createElement('td');
         webhookCell.style.border = '1px solid transparent';
         webhookCell.style.padding = '8px';
@@ -830,7 +974,6 @@ function renderCustomRows() {
         webhookContainer.style.minWidth = '200px';
         webhookCell.appendChild(webhookContainer);
         
-        // Ячейка с кнопками действий
         const actionsCell = document.createElement('td');
         actionsCell.style.border = '1px solid transparent';
         actionsCell.style.padding = '8px';
@@ -840,7 +983,6 @@ function renderCustomRows() {
         actionsContainer.className = 'actions-container';
         
         if (row.isNew || editingRowId === row.id) {
-            // Кнопка сохранения
             const saveBtn = document.createElement('button');
             saveBtn.className = 'webhook-action-btn save';
             saveBtn.textContent = '✓';
@@ -852,6 +994,11 @@ function renderCustomRows() {
                 if (row.isNew) {
                     if (!row.notify_type || !row.description) {
                         showNotification('error', 'Ошибка', 'Заполните все поля');
+                        return;
+                    }
+                    if (predefinedTypes.includes(row.notify_type) || 
+                        customRows.some(r => r.id !== row.id && r.notify_type === row.notify_type)) {
+                        showNotification('error', 'Ошибка', 'Параметр с таким ID уже существует');
                         return;
                     }
                     delete row.isNew;
@@ -867,7 +1014,6 @@ function renderCustomRows() {
             
             actionsContainer.appendChild(saveBtn);
         } else {
-            // Кнопки редактирования и удаления
             const editBtn = document.createElement('button');
             editBtn.className = 'webhook-action-btn edit';
             editBtn.textContent = '✎';
@@ -904,7 +1050,6 @@ function renderCustomRows() {
         
         table.appendChild(tr);
         
-        // Создаем мультиселект для этой строки
         setTimeout(() => {
             if (!webhookSelections[webhookContainer.dataset.notifyType]) {
                 webhookSelections[webhookContainer.dataset.notifyType] = row.webhook_urls || [];
@@ -917,11 +1062,9 @@ function renderCustomRows() {
         }, 0);
     });
     
-    // Добавляем обработчики для предопределенных строк
     setTimeout(() => {
         const editButtons = document.querySelectorAll('.webhook-action-btn.edit[data-notify-type]');
         editButtons.forEach(button => {
-            // Проверяем, не добавлен ли уже обработчик
             if (!button.hasAttribute('data-handler-added')) {
                 button.setAttribute('data-handler-added', 'true');
                 button.addEventListener('click', function() {
@@ -930,23 +1073,7 @@ function renderCustomRows() {
                 });
             }
         });
-    }, 100);
-}
-
-let isLogged = false;
-restoreAuthState();
-
-// Добавляем обработчики событий (гарантируем однократное выполнение)
-if (!window._listenersAdded) {
-    window._listenersAdded = true;
-
-    document.addEventListener('DOMContentLoaded', function() {
-        const addCustomRowBtn = document.getElementById('addCustomRowBtn');
-        if (addCustomRowBtn) {
-            addCustomRowBtn.addEventListener('click', addCustomRow);
-        }
         
-        // Добавляем обработчики для кнопок удаления предопределенных строк
         const deleteButtons = document.querySelectorAll('.delete-row-btn');
         deleteButtons.forEach(button => {
             button.addEventListener('click', function() {
@@ -956,6 +1083,25 @@ if (!window._listenersAdded) {
                 }
             });
         });
+    }, 100);
+}
+
+/**
+ * Флаг авторизации пользователя
+ * @type {boolean}
+ */
+let isLogged = false;
+
+restoreAuthState();
+
+if (!window._listenersAdded) {
+    window._listenersAdded = true;
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const addCustomRowBtn = document.getElementById('addCustomRowBtn');
+        if (addCustomRowBtn) {
+            addCustomRowBtn.addEventListener('click', addCustomRow);
+        }
     });
 
     const openModalBtn = document.getElementById('openModalBtn');
@@ -973,8 +1119,3 @@ if (!window._listenersAdded) {
     const saveBtn = document.getElementById('saveSettingsBtn');
     if (saveBtn) saveBtn.addEventListener('click', CompleteSetup);
 }
-
-// Для просмотра из консоли
-window.customRows = customRows;
-window.predefinedTypes = predefinedTypes;
-window.webhookSelections = webhookSelections;

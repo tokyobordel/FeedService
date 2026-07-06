@@ -10,9 +10,9 @@ import (
 	"sync"
 	"syscall"
 	"time"
-	"traineesheep/notifyservice/email"
-	"traineesheep/notifyservice/handlers"
-	"traineesheep/notifyservice/tgbot"
+	"traineesheep/notifyservice/internal/email"
+	"traineesheep/notifyservice/internal/handlers"
+	"traineesheep/notifyservice/internal/tgbot"
 
 	"github.com/go-telegram/bot"
 	"github.com/gorilla/mux"
@@ -20,24 +20,45 @@ import (
 	"github.com/joho/godotenv"
 )
 
-// Структура SmtpDTO нужна для передачи параметров почты, с которой будет
-// вестись рассылка
+// SmtpDTO представляет собой структуру данных для конфигурации SMTP сервера.
+// Используется для настройки параметров почтового сервера для отправки уведомлений.
 type SmtpDTO struct {
-	Email    string
-	Password string
-	Host     string
-	Port     string
+	Email    string // Email адрес отправителя
+	Password string // Пароль от email аккаунта
+	Host     string // SMTP хост (например, smtp.gmail.com)
+	Port     string // SMTP порт (например, 587)
 }
 
-// Функция main это главная функция для работа программы
+// main является точкой входа в приложение.
+//
+// Функция выполняет следующие задачи:
+//  1. Загружает переменные окружения из файла ./config/data.env
+//  2. Устанавливает соединение с PostgreSQL базой данных
+//  3. Инициализирует Telegram бота с обработчиком по умолчанию
+//  4. Создает структуру SmtpDTO с параметрами почтового сервера
+//  5. Подготавливает каналы и wait group для управления goroutines
+//  6. Настраивает маршруты HTTP API с помощью Gorilla Mux
+//  7. Запускает HTTP сервер и Telegram бота в отдельных goroutines
+//  8. Ожидает сигнал завершения (SIGINT) для graceful shutdown
+//  9. Корректно завершает работу всех компонентов
 func main() {
 	godotenv.Load("./config/data.env")
 
-	var channel_size, _ = strconv.Atoi(os.Getenv("CHANNEL_SIZE"))
+	requiredEnvVars := []string{"DATABASE_CONNECT", "BOT_TOKEN", "CHANNEL_SIZE", "JWT_SECRET"}
+	for _, envVar := range requiredEnvVars {
+		if os.Getenv(envVar) == "" {
+			log.Fatalf("Required environment variable %s is not set", envVar)
+		}
+	}
+
+	var channelSize, err = strconv.Atoi(os.Getenv("CHANNEL_SIZE"))
+	if err != nil {
+		log.Fatal("Error! Channel size can't be converted to int!")
+	}
 
 	pool, err := pgxpool.New(context.Background(), os.Getenv("DATABASE_CONNECT"))
 	if err != nil {
-		panic(err)
+		log.Fatal("Error connecting to Database")
 	}
 	defer pool.Close()
 
@@ -45,15 +66,15 @@ func main() {
 		bot.WithDefaultHandler(tgbot.Handler),
 	}
 
-	bot, err := bot.New(os.Getenv("BOT_TOKEN"), opts[0])
+	tgBot, err := bot.New(os.Getenv("BOT_TOKEN"), opts[0])
 	if err != nil {
-		panic(err)
+		log.Fatal("Error starting TG bot")
 	}
 	smtpDto := email.NewSmtpDTO(os.Getenv("smtpEmail"), os.Getenv("smtpPassword"), os.Getenv("smtpHost"), os.Getenv("smtpPort"))
 
-	grtChan := make(chan int, channel_size)
-	wg := &sync.WaitGroup{}
-	d := handlers.NewDTO(bot, pool, smtpDto, grtChan, wg, os.Getenv("JWT_SECRET"))
+	grtChan := make(chan int, channelSize)
+	wg := new(sync.WaitGroup{})
+	d := handlers.NewDTO(tgBot, pool, smtpDto, grtChan, wg, os.Getenv("JWT_SECRET"))
 
 	r := mux.NewRouter()
 	api := r.PathPrefix("/api").Subrouter()
@@ -69,6 +90,7 @@ func main() {
 
 	go func() {
 		log.Println("Telegram bot has been started")
+		tgBot.Start(context.Background())
 	}()
 
 	go func() {
@@ -92,7 +114,7 @@ func main() {
 	log.Println("Waiting for active requests to finish...")
 	wg.Wait()
 
-	if _, err := bot.Close(context.Background()); err != nil {
-		log.Println("Tg bot close error:", err)
+	if _, err := tgBot.Close(context.Background()); err != nil {
+		log.Println("Ошибка при отключении ТГ бота:", err)
 	}
 }

@@ -36,7 +36,6 @@ EXPOSE 8080
 
 # CMD с ожиданием БД через pg_isready (теперь работает)
 CMD sh -c '. ./config/data.env && \
-           echo "DATABASE_CONNECT=$DATABASE_CONNECT" && \
            echo "Waiting for database..." && \
            until pg_isready -h db -U postgres; do sleep 2; done && \
            echo "Database ready, running migrations..." && \

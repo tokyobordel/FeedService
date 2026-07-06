@@ -1,7 +1,9 @@
+// Package handlers предоставляет обработчики HTTP-запросов для сервиса уведомлений.
+//
+// Данный пакет содержит реализацию всех endpoint'ов API сервиса,
+// включая обработку уведомлений, настройку типов уведомлений,
+// получение настроек и авторизацию модераторов.
 package handlers
-
-// Пакет handlers используется для реализации функций, которые должны вызываться
-// при достижении endpoint'ов.
 
 import (
 	"context"
@@ -13,10 +15,10 @@ import (
 	"strings"
 	"sync"
 	"time"
-	"traineesheep/notifyservice/email"
 	"traineesheep/notifyservice/errs"
-	"traineesheep/notifyservice/tgbot"
-	"traineesheep/notifyservice/webhook_handler"
+	"traineesheep/notifyservice/internal/email"
+	"traineesheep/notifyservice/internal/tgbot"
+	"traineesheep/notifyservice/internal/webhook_handler"
 
 	"github.com/go-telegram/bot"
 	"github.com/golang-jwt/jwt/v5"
@@ -24,20 +26,44 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// Структура DTO используется для передачи данных из главного main.go файла
+// DTO (Data Transfer Object) представляет собой структуру данных,
+// которая инкапсулирует все зависимости и бизнес-логику для обработчиков HTTP-запросов.
+//
+// Структура содержит:
+//   - Telegram бот для отправки сообщений
+//   - Пул соединений с базой данных PostgreSQL
+//   - Конфигурацию SMTP для отправки email уведомлений
+//   - Канал для передачи данных между goroutines
+//   - WaitGroup для синхронизации горутин
+//   - Секретный ключ для JWT токенов
 type DTO struct {
-	bot            *bot.Bot        // Сущность телеграм бота
-	sql_connection *pgxpool.Pool   // Коннект к базе
-	smtp           *email.SmtpDTO  // Структура SMTP
-	grtsChannels   chan int        // Канал нужный для контроля количества запросов
-	wg             *sync.WaitGroup // WaitGroup для отметки, что задача выполнилась
-	JwtSecret      string          // Секрет для JWT
+	bot            *bot.Bot
+	sql_connection *pgxpool.Pool
+	smtp           *email.SmtpDTO
+	grtsChannels   chan int
+	wg             *sync.WaitGroup
+	JwtSecret      string
 }
 
-// NewDTO возвращает новый экземпляр структуры DTO
-// Используется для создания экземпляра структуры DTO
+// NewDTO создает новый экземпляр DTO с заданными параметрами.
+//
+// Параметры:
+//   - bot: экземпляр Telegram бота
+//   - dbpool: пул соединений с PostgreSQL базой данных
+//   - smtpDto: конфигурация SMTP сервера
+//   - grtChan: канал для передачи данных между goroutines
+//   - wg: wait group для синхронизации горутин
+//   - jwtSecret: секретный ключ для JWT токенов
+//
+// Возвращает указатель на созданный DTO.
 func NewDTO(bot *bot.Bot, conn *pgxpool.Pool, smtp *email.SmtpDTO, channel chan int, wg *sync.WaitGroup, secret string) *DTO {
-	return &DTO{bot: bot, sql_connection: conn, smtp: smtp, grtsChannels: channel, wg: wg, JwtSecret: secret}
+	return &DTO{
+		bot:            bot,
+		sql_connection: conn,
+		smtp:           smtp,
+		grtsChannels:   channel,
+		wg:             wg,
+		JwtSecret:      secret}
 }
 
 // Переменная для создания WebSocket соединения
@@ -48,7 +74,7 @@ var upgrader = websocket.Upgrader{
 
 // Массив с допустимыми типами уведомлений
 var notify_types_allowed = []string{"user_register", "user_login", "admin_newImg",
-	"user_imgVerdict", "user_email_confirmation"}
+	"user_imgVerdict", "user_confirm"}
 
 // Структура ResponseData используется для формирования ответа на запрос
 type ResponseData struct {
@@ -96,9 +122,19 @@ func enableCors(w http.ResponseWriter) {
 
 }
 
-// Функция HandleNotify используется для отправки уведомлений
-// На вход приходит запрос, с указанным типом уведомления и сообщением
-// На выходе отправляется статус код и ответ, успешна ли была отправка уведомлений(-я)
+// HandleNotify обрабатывает POST-запросы на отправку уведомлений.
+//
+// Endpoint: POST /api/notify
+//
+// Тело запроса должно содержать JSON с данными уведомления.
+// Функция проверяет JWT токен, извлекает данные из запроса
+// и запускает горутину для отправки уведомлений через различные каналы.
+//
+// Возможные коды ответа:
+//   - 200: уведомление успешно принято к отправке
+//   - 400: неверный формат запроса
+//   - 401: невалидный или отсутствующий JWT токен
+//   - 500: внутренняя ошибка сервера
 func (d DTO) HandleNotify(w http.ResponseWriter, r *http.Request) {
 	var response ResponseData
 
@@ -130,7 +166,7 @@ func (d DTO) HandleNotify(w http.ResponseWriter, r *http.Request) {
 		response_byte, _ := json.MarshalIndent(response, "", "    ")
 		w.WriteHeader(http.StatusInternalServerError)
 		if _, err := w.Write(response_byte); err != nil {
-			fmt.Println(errs.ErrWritingToRespBody)
+			log.Println(errs.ErrWritingToRespBody)
 		}
 		return
 	}
@@ -141,7 +177,7 @@ func (d DTO) HandleNotify(w http.ResponseWriter, r *http.Request) {
 		response_byte, _ := json.MarshalIndent(response, "", "    ")
 		w.WriteHeader(http.StatusBadRequest)
 		if _, err := w.Write(response_byte); err != nil {
-			fmt.Println(errs.ErrWritingToRespBody)
+			log.Println(errs.ErrWritingToRespBody)
 		}
 		return
 	}
@@ -164,7 +200,7 @@ func (d DTO) HandleNotify(w http.ResponseWriter, r *http.Request) {
 		response_byte, _ := json.MarshalIndent(response, "", "    ")
 		w.WriteHeader(http.StatusBadRequest)
 		if _, err := w.Write(response_byte); err != nil {
-			fmt.Println(errs.ErrWritingToRespBody)
+			log.Println(errs.ErrWritingToRespBody)
 			return
 		}
 	}
@@ -173,13 +209,13 @@ func (d DTO) HandleNotify(w http.ResponseWriter, r *http.Request) {
 	if req.Notify_Type == "user_register" {
 		query := `INSERT INTO client (email, telegram_id) VALUES ($1, $2)`
 		if _, err := sql_conn.Exec(context.Background(), query, user_email, tg_user_id); err != nil {
-			fmt.Println("err:", err)
+			log.Println("err:", err)
 			response.Success = false
 			response.Error_message = "При попытке добавить данные в базу произошла ошибка: " + err.Error() + err.Error()
 			response_byte, _ := json.MarshalIndent(response, "", "    ")
 			w.WriteHeader(http.StatusBadRequest)
 			if _, err := w.Write(response_byte); err != nil {
-				fmt.Println(errs.ErrWritingToRespBody)
+				log.Println(errs.ErrWritingToRespBody)
 				return
 			}
 			return
@@ -195,7 +231,7 @@ func (d DTO) HandleNotify(w http.ResponseWriter, r *http.Request) {
 		response_byte, _ := json.MarshalIndent(response, "", "    ")
 		w.WriteHeader(http.StatusOK)
 		if _, err := w.Write(response_byte); err != nil {
-			fmt.Println(errs.ErrWritingToRespBody)
+			log.Println(errs.ErrWritingToRespBody)
 			return
 		}
 		return
@@ -213,25 +249,25 @@ func (d DTO) HandleNotify(w http.ResponseWriter, r *http.Request) {
 
 	row := sql_conn.QueryRow(context.Background(), query, req.Notify_Type)
 	if err := row.Scan(&want_email, &want_telegram, &want_webhook); err != nil {
-		fmt.Println("Error while scanning db:", err)
+		log.Println("Error while scanning db:", err)
 		return
 	}
 
 	notification_message := req.Message
 
-	fmt.Println(want_telegram, want_email, want_webhook)
+	log.Println(want_telegram, want_email, want_webhook)
 
 	// Если мы хотим уведомление в ТГ
 	if want_telegram {
 		tgbot.HandleSendMessage(d.bot, context.Background(), tg_user_id, notification_message)
-		fmt.Println("Я отправил сообщение в ТГ")
+		log.Println("Я отправил сообщение в ТГ")
 	}
 
 	// Если мы хотим уведомление по Email
 	if want_email {
 		emails_to_send = append(emails_to_send, user_email)
 		d.smtp.SendMessage(emails_to_send, []byte(notification_message), req.Notify_Type)
-		fmt.Println("Отправил сообещние по почте")
+		log.Println("Отправил сообещние по почте")
 	}
 
 	// Если мы хотим уведомление по Webhook
@@ -239,7 +275,7 @@ func (d DTO) HandleNotify(w http.ResponseWriter, r *http.Request) {
 		for _, url := range want_webhook {
 			webhook_handler.SendWebhookMessage(url, []byte(notification_message))
 		}
-		fmt.Println("Отправил сообщение по вебхуку")
+		log.Println("Отправил сообщение по вебхуку")
 	}
 
 	response.Success = true
@@ -247,15 +283,24 @@ func (d DTO) HandleNotify(w http.ResponseWriter, r *http.Request) {
 	response_byte, _ := json.MarshalIndent(response, "", "    ")
 	w.WriteHeader(http.StatusOK)
 	if _, err := w.Write(response_byte); err != nil {
-		fmt.Println(errs.ErrWritingToRespBody)
+		log.Println(errs.ErrWritingToRespBody)
 		return
 	}
 	log.Printf("Уведомление типа %v было успешно доставлено\n", req.Notify_Type)
 }
 
-// Функция для сохранения значений переключателей, куда мы хотим получать уведомления
-// На вход получаем запрос с значениями переключателей
-// На выходе отправляется статус код и ответ, успешно ли было сохранение
+// HandleSaveSettingsCheckmarks обрабатывает POST-запросы на сохранение настроек уведомлений.
+//
+// Endpoint: POST /api/notify_types
+//
+// Тело запроса должно содержать JSON с настройками типов уведомлений для пользователя.
+// Функция проверяет JWT токен и сохраняет настройки в базе данных.
+//
+// Возможные коды ответа:
+//   - 200: настройки успешно сохранены
+//   - 400: неверный формат запроса
+//   - 401: невалидный или отсутствующий JWT токен
+//   - 500: внутренняя ошибка сервера
 func (d DTO) HandleSaveSettingsCheckmarks(w http.ResponseWriter, r *http.Request) {
 	var response ResponseData
 
@@ -274,7 +319,7 @@ func (d DTO) HandleSaveSettingsCheckmarks(w http.ResponseWriter, r *http.Request
 		response.Error_message = "Unauthorized"
 		respBytes, _ := json.MarshalIndent(response, "", "    ")
 		if _, err := w.Write(respBytes); err != nil {
-			fmt.Println("Failed to write response:", err)
+			log.Println("Failed to write response:", err)
 			return
 		}
 		return
@@ -289,13 +334,13 @@ func (d DTO) HandleSaveSettingsCheckmarks(w http.ResponseWriter, r *http.Request
 		respBytes, _ := json.MarshalIndent(response, "", "    ")
 		w.WriteHeader(http.StatusInternalServerError)
 		if _, err := w.Write(respBytes); err != nil {
-			fmt.Println(errs.ErrWritingToRespBody)
+			log.Println(errs.ErrWritingToRespBody)
 			return
 		}
 		return
 	}
 
-	fmt.Println("Я получил...\n", string(body_byte), "\n")
+	log.Println("Я получил...\n", string(body_byte), "\n")
 
 	var json_list NotifyTypeMessengerList
 	if err := json.Unmarshal(body_byte, &json_list); err != nil {
@@ -303,19 +348,23 @@ func (d DTO) HandleSaveSettingsCheckmarks(w http.ResponseWriter, r *http.Request
 		response.Error_message = errs.ErrJsonUnmarshal + err.Error()
 		respBytes, _ := json.MarshalIndent(response, "", "    ")
 		w.WriteHeader(http.StatusBadRequest)
-		fmt.Println(err)
+		log.Println(err)
 		if _, err := w.Write(respBytes); err != nil {
-			fmt.Println(errs.ErrWritingToRespBody)
+			log.Println(errs.ErrWritingToRespBody)
 			return
 		}
 		return
 	}
 
-	fmt.Println("Я успешно закинул в json_list")
+	log.Println("Я успешно закинул в json_list")
 
 	// После того как получили данные записываем их в базу, не создавая дубликаты
 	for _, elem := range json_list.Data {
-		fmt.Println("Читаю:", elem)
+
+		// Обновляем список разрешенных NotifyType
+		notify_types_allowed = append(notify_types_allowed, elem.NotifyType)
+
+		log.Println("Читаю:", elem)
 		query := `INSERT INTO notify_type_message (notify_type, notify_description, want_telegram, want_email, want_webhook)
     		VALUES ($1, $2, $3, $4, $5)
     		ON CONFLICT (notify_type) DO UPDATE SET
@@ -330,9 +379,9 @@ func (d DTO) HandleSaveSettingsCheckmarks(w http.ResponseWriter, r *http.Request
 			response.Error_message = "Ошибка при вставке данных в базу. " + err.Error()
 			respBytes, _ := json.MarshalIndent(response, "", "    ")
 			w.WriteHeader(http.StatusBadRequest)
-			fmt.Println(response.Error_message)
+			log.Println(response.Error_message)
 			if _, err := w.Write(respBytes); err != nil {
-				fmt.Println(errs.ErrWritingToRespBody)
+				log.Println(errs.ErrWritingToRespBody)
 			}
 			return
 		}
@@ -343,15 +392,22 @@ func (d DTO) HandleSaveSettingsCheckmarks(w http.ResponseWriter, r *http.Request
 	respBytes, _ := json.MarshalIndent(response, "", "    ")
 	w.WriteHeader(http.StatusOK)
 	if _, err := w.Write(respBytes); err != nil {
-		fmt.Println(errs.ErrWritingToRespBody)
+		log.Println(errs.ErrWritingToRespBody)
 		return
 	}
-	fmt.Println("Я успешно записал настройки")
+	log.Println("Я успешно записал настройки")
 }
 
-// Функция для получения настроек перключателей куда мы хотим получать уведомление
-// (нужно для того чтобы при обновлении страницы модератора восстанавливались значения
-// переключателей которые уже сейчас лежат в базе)
+// HandleGetNotifySettings обрабатывает GET-запросы на получение текущих настроек уведомлений.
+//
+// Endpoint: GET /api/get_notify_settings
+//
+// Функция извлекает userID из JWT токена и возвращает настройки уведомлений пользователя.
+//
+// Возможные коды ответа:
+//   - 200: успешное получение настроек (в формате JSON)
+//   - 401: невалидный или отсутствующий JWT токен
+//   - 500: внутренняя ошибка сервера
 func (d DTO) HandleGetNotifySettings(w http.ResponseWriter, r *http.Request) {
 	var response ResponseData
 	enableCors(w)
@@ -369,7 +425,7 @@ func (d DTO) HandleGetNotifySettings(w http.ResponseWriter, r *http.Request) {
 		response.Error_message = "Unauthorized"
 		respBytes, _ := json.MarshalIndent(response, "", "    ")
 		if _, err := w.Write(respBytes); err != nil {
-			fmt.Println("Failed to write response:", err)
+			log.Println("Failed to write response:", err)
 			return
 		}
 		return
@@ -386,7 +442,7 @@ func (d DTO) HandleGetNotifySettings(w http.ResponseWriter, r *http.Request) {
 		respBytes, _ := json.MarshalIndent(response, "", "    ")
 		w.WriteHeader(http.StatusInternalServerError)
 		if _, err := w.Write(respBytes); err != nil {
-			fmt.Println(errs.ErrWritingToRespBody)
+			log.Println(errs.ErrWritingToRespBody)
 			return
 		}
 		return
@@ -400,13 +456,13 @@ func (d DTO) HandleGetNotifySettings(w http.ResponseWriter, r *http.Request) {
 		var want_telegram bool
 		var webhook_urls []string
 		if err := rows.Scan(&notify_type, &notify_description, &want_telegram, &want_email, &webhook_urls); err != nil {
-			fmt.Println(err)
+			log.Println(err)
 			response.Success = false
 			response.Error_message = "Ошибка при обходе базы данных. " + err.Error()
 			respBytes, _ := json.MarshalIndent(response, "", "    ")
 			w.WriteHeader(http.StatusInternalServerError)
 			if _, err := w.Write(respBytes); err != nil {
-				fmt.Println(errs.ErrWritingToRespBody)
+				log.Println(errs.ErrWritingToRespBody)
 			}
 			return
 		}
@@ -430,7 +486,7 @@ func (d DTO) HandleGetNotifySettings(w http.ResponseWriter, r *http.Request) {
 		respBytes, _ := json.MarshalIndent(response, "", "    ")
 		w.WriteHeader(http.StatusInternalServerError)
 		if _, err := w.Write(respBytes); err != nil {
-			fmt.Println(errs.ErrWritingToRespBody)
+			log.Println(errs.ErrWritingToRespBody)
 			return
 		}
 		return
@@ -438,15 +494,24 @@ func (d DTO) HandleGetNotifySettings(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 	if _, err := w.Write(resp_byte); err != nil {
-		fmt.Println(errs.ErrWritingToRespBody)
+		log.Println(errs.ErrWritingToRespBody)
 		return
 	}
-	fmt.Println("Я успешно получил настройки")
+	log.Println("Я успешно получил настройки")
 }
 
-// Функция HandleModeratorLogin используется для проверки данных для авторизации модератора
-// На вход она получает в JSON логин и пароль потенциального пользователя
-// На выход дает ответ, правильные ли данные были введены
+// HandleModeratorLogin обрабатывает POST-запросы на авторизацию модератора.
+//
+// Endpoint: POST /api/moderator_login
+//
+// Тело запроса должно содержать логин и пароль модератора.
+// При успешной авторизации возвращает JWT токен для дальнейших запросов.
+//
+// Возможные коды ответа:
+//   - 200: успешная авторизация (возвращает JWT токен)
+//   - 400: неверный формат запроса
+//   - 401: неверные учетные данные
+//   - 500: внутренняя ошибка сервера
 func (d DTO) HandleModeratorLogin(w http.ResponseWriter, r *http.Request) {
 	var response ResponseData
 	var login_data LoginData
@@ -468,10 +533,10 @@ func (d DTO) HandleModeratorLogin(w http.ResponseWriter, r *http.Request) {
 		response.Success = false
 		response.Error_message = errs.ErrReadingRequestMessage + err.Error()
 		response_byte, _ := json.MarshalIndent(response, "", "    ")
-		fmt.Println(response.Error_message)
+		log.Println(response.Error_message)
 		w.WriteHeader(http.StatusInternalServerError)
 		if _, err := w.Write(response_byte); err != nil {
-			fmt.Println(errs.ErrWritingToRespBody)
+			log.Println(errs.ErrWritingToRespBody)
 		}
 		return
 	}
@@ -482,15 +547,15 @@ func (d DTO) HandleModeratorLogin(w http.ResponseWriter, r *http.Request) {
 		response.Success = false
 		response.Error_message = errs.ErrJsonUnmarshal + ": " + err.Error()
 		response_byte, _ := json.MarshalIndent(response, "", "    ")
-		fmt.Println(response.Error_message)
+		log.Println(response.Error_message)
 		w.WriteHeader(http.StatusBadRequest)
 		if _, err := w.Write(response_byte); err != nil {
-			fmt.Println(errs.ErrWritingToRespBody)
+			log.Println(errs.ErrWritingToRespBody)
 		}
 		return
 	}
 
-	//fmt.Println(login_data.Login, login_data.Password)
+	//log.Println(login_data.Login, login_data.Password)
 
 	if login_data.Login == "admin" && login_data.Password == "12345" {
 
@@ -503,7 +568,7 @@ func (d DTO) HandleModeratorLogin(w http.ResponseWriter, r *http.Request) {
 			})
 		jwt_s, err := jwt_t.SignedString(jwt_key)
 		if err != nil {
-			fmt.Println("Ошибка при создании криптографической подписи для токена", err)
+			log.Println("Ошибка при создании криптографической подписи для токена", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
@@ -515,28 +580,28 @@ func (d DTO) HandleModeratorLogin(w http.ResponseWriter, r *http.Request) {
 		response_byte, _ := json.MarshalIndent(response, "", "    ")
 		w.WriteHeader(http.StatusOK)
 		if _, err := w.Write(response_byte); err != nil {
-			fmt.Println(errs.ErrWritingToRespBody)
+			log.Println(errs.ErrWritingToRespBody)
 		}
-		fmt.Println("Логин и пароль успешно прошли проверку!")
+		log.Println("Логин и пароль успешно прошли проверку!")
 		return
 	} else {
 		var response ResponseData
 		response.Success = false
 		response.Error_message = "Неправильно введен логин или пароль. Попробуйте еще раз!"
 		response_byte, _ := json.MarshalIndent(response, "", "    ")
-		fmt.Println(response.Error_message)
+		log.Println(response.Error_message)
 		w.WriteHeader(http.StatusOK)
 		if _, err := w.Write(response_byte); err != nil {
-			fmt.Println(errs.ErrWritingToRespBody)
+			log.Println(errs.ErrWritingToRespBody)
 		}
-		fmt.Println("Логин и пароль не прошли проверку...")
+		log.Println("Логин и пароль не прошли проверку...")
 		return
 	}
 }
 
 func ValidateToken(r *http.Request, jwtSecret string) (jwt.MapClaims, error) {
 
-	fmt.Println("Я получил токен:", jwtSecret)
+	log.Println("Я получил токен:", jwtSecret)
 
 	authHeader := r.Header.Get("Authorization")
 
@@ -546,20 +611,20 @@ func ValidateToken(r *http.Request, jwtSecret string) (jwt.MapClaims, error) {
 
 	if authHeader == "" {
 		err := "Проверка токена не прошла! Необходима авторизация!"
-		fmt.Println(err)
+		log.Println(err)
 		return nil, fmt.Errorf(err)
 	}
 
 	headerParts := strings.Split(authHeader, " ")
 	if len(headerParts) != 2 || headerParts[0] != "Bearer" {
 		err := "Неправильный формат хедера: Необходимо использовать Bearer <token>"
-		fmt.Println(err)
+		log.Println(err)
 		return nil, fmt.Errorf(err)
 	}
 
 	tokenString := headerParts[1]
 
-	fmt.Println("Получил token string:", tokenString)
+	log.Println("Получил token string:", tokenString)
 
 	claims := jwt.MapClaims{}
 	token, err := jwt.ParseWithClaims(tokenString, claims, func(t *jwt.Token) (interface{}, error) {
@@ -569,11 +634,11 @@ func ValidateToken(r *http.Request, jwtSecret string) (jwt.MapClaims, error) {
 		return []byte(jwtSecret), nil
 	})
 
-	fmt.Println(err, "Валиден ли?", token.Valid)
+	log.Println(err, "Валиден ли?", token.Valid)
 
 	if err != nil || !token.Valid {
 		err := "Неправильный токен или токен истёк!"
-		fmt.Println(err)
+		log.Println(err)
 		return nil, fmt.Errorf(err)
 	}
 
