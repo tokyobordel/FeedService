@@ -18,7 +18,7 @@ func NotifyUserConfirm(localAddr string, id int, username string, email string) 
 			username, url)
 
 		payload := map[string]interface{}{
-			"notify_type": "user_register", // todo изменить на user_confirm
+			"notify_type": "user_confirm",
 			"email":       email,
 			"message":     msg,
 			"telegram_id": 924956695,
