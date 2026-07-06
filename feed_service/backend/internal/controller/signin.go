@@ -2,9 +2,9 @@ package controller
 
 import (
 	"log"
+	"traineesheep/feedservice/internal/client/notify"
 	"traineesheep/feedservice/internal/middleware"
 	"traineesheep/feedservice/internal/utils"
-	"traineesheep/feedservice/internal/utils/notify"
 
 	"github.com/gofiber/fiber/v2"
 	"golang.org/x/crypto/bcrypt"

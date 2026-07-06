@@ -3,8 +3,8 @@ package controller
 import (
 	"log"
 	"strconv"
+	"traineesheep/feedservice/internal/client/notify"
 	"traineesheep/feedservice/internal/utils"
-	"traineesheep/feedservice/internal/utils/notify"
 
 	"github.com/gofiber/fiber/v2"
 )

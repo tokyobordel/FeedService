@@ -12,25 +12,27 @@
  * - Размер каждого файла ≤ 2 МБ.
  * - Допускаются только MIME-типы, начинающиеся с `image/`.
  *
- * При успешной загрузке вызывает глобальные функции:
- * - {@link window.closeModal} для закрытия модального окна.
- * - {@link window.reloadFeed} для обновления ленты.
+ * При успешной загрузке вызывает:
+ * - {@link module:main.closeModal} для закрытия модального окна.
+ * - {@link module:feed/feed.reloadFeed} для обновления ленты.
  *
  * Ошибки выводятся в элемент `#uploadError`.
  *
  * @function initUploadHandlers
- * @global
+ * @requires module:main.openModal
+ * @requires module:main.closeModal
+ * @requires module:feed/feed.reloadFeed
  * @requires HTML-элементы с id: `btnUpload`, `uploadModal`, `uploadForm`,
  *           `fileInput`, `fileList`, `uploadError`, `postTitle`, `postDescription`.
- * @requires window.openModal - функция для открытия переданного модального окна.
- * @requires window.closeModal - функция для закрытия переданного модального окна.
- * @requires window.reloadFeed - функция для обновления ленты после успешной загрузки.
  * @returns {void}
  *
  * @example
  * // Вызов после загрузки DOM
  * document.addEventListener('DOMContentLoaded', initUploadHandlers);
  */
+import { openModal, closeModal } from '../index.js';
+import { reloadFeed } from '../feed/feed.js';
+
 export function initUploadHandlers() {
     const uploadBtn = document.getElementById('btnUpload');
     const uploadModal = document.getElementById('uploadModal');
@@ -40,12 +42,12 @@ export function initUploadHandlers() {
     const uploadError = document.getElementById('uploadError');
 
     uploadBtn.addEventListener('click', () => {
-        window.openModal(uploadModal);
+        openModal(uploadModal);
     });
 
     const closeBtn = uploadModal.querySelector('.close');
     if (closeBtn) {
-        closeBtn.addEventListener('click', () => window.closeModal(uploadModal));
+        closeBtn.addEventListener('click', () => closeModal(uploadModal));
     }
 
     // Отображение выбранных файлов
@@ -90,7 +92,6 @@ export function initUploadHandlers() {
         const description = document.getElementById('postDescription').value.trim();
         const files = fileInput.files;
 
-        // Простейшая валидация
         if (!title) {
             uploadError.textContent = 'Введите заголовок';
             return;
@@ -101,13 +102,11 @@ export function initUploadHandlers() {
         }
 
         const formData = new FormData();
-
         formData.append('title', title);
         formData.append('description', description);
         for (const file of files) {
             formData.append('images', file);
         }
-
 
         try {
             const response = await fetch('/api/upload', {
@@ -121,11 +120,10 @@ export function initUploadHandlers() {
                 throw new Error(data.err_message || 'Ошибка загрузки');
             }
 
-            window.closeModal(uploadModal);
-            if (window.reloadFeed) window.reloadFeed();
+            closeModal(uploadModal);
+            if (reloadFeed) reloadFeed();
         } catch (err) {
             uploadError.textContent = err.message;
         }
     });
-
-};
+}

@@ -32,6 +32,23 @@
     background: var(--border);
 }
 
+.postImage {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    opacity: 0;
+    transition: opacity 0.35s ease;
+    z-index: 1;
+}
+
+.postImage.showedImage {
+    opacity: 1;
+    z-index: 2;
+}
+
 .post-body {
     padding: 1.2rem;
     flex: 1;
