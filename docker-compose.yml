@@ -18,6 +18,8 @@ services:
       dockerfile: Dockerfile
     ports:
       - "8070:8070"
+    environment:
+      - PUBLIC_HOST=10.64.10.66
     env_file:
       - fs_backend.env
     depends_on:

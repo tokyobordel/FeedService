@@ -58,7 +58,7 @@ func (ctrl *Controller) Signup(c *fiber.Ctx) error {
 		})
 	}
 
-	localAddr := "http://" + c.Context().LocalAddr().String()
+	localAddr := "http://" + utils.GetEnv("PUBLIC_HOST", c.Context().LocalAddr().String())
 	notify.NotifyUserRegistered(localAddr, user.ID, user.Username, user.Email, input.Password)
 
 	accessToken, err := middleware.GenerateAccessToken(user.ID)
