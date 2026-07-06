@@ -1,7 +1,7 @@
 services:
   frontend:
     build:
-      context: "./FeedServiceFrontend"
+      context: "./frontend"
       dockerfile: Dockerfile
     stop_signal: SIGQUIT
     ports:
@@ -14,7 +14,7 @@ services:
   backend:
     restart: unless-stopped
     build:
-      context: ./FeedServiceBackend
+      context: "./backend"
       dockerfile: Dockerfile
     ports:
       - "8070:8070"
