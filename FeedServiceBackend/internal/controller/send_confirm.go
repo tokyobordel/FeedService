@@ -41,7 +41,7 @@ func (ctrl *Controller) SendConfrim(c *fiber.Ctx) error {
 		})
 	}
 
-	localAddr := "http://" + c.Context().LocalAddr().String()
+	localAddr := "http://" + utils.GetEnv("PUBLIC_HOST", c.Context().LocalAddr().String())
 	notify.NotifyUserConfirm(localAddr, userIDInt, user.Username, user.Email)
 
 	log.Printf("GET /send_confirm: Отправлено уведомление на почту %s", user.Email)
