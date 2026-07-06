@@ -4,7 +4,12 @@
 package main
 
 import (
+	"context"
 	"log"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 	"traineesheep/feedservice/internal/app"
 	"traineesheep/feedservice/internal/controller"
 	"traineesheep/feedservice/internal/database"
@@ -47,5 +52,30 @@ func main() {
 	// Задаем маршрутизацию
 	controller.Create(app, userService, feedService, tokenService)
 
-	app.Listen(utils.GetEnv("BACKEND_HOST", ":8080"))
+	// Запускаем сервер в горутине
+	addr := utils.GetEnv("BACKEND_HOST", ":8080")
+	go func() {
+		if err := app.Listen(addr); err != nil {
+			// Логируем ошибку, но не паникуем, если это не ErrServerClosed
+			log.Printf("Ошибка при запуске или остановке сервера: %v\n", err)
+		}
+	}()
+
+	// Ждём сигнала завершения (Ctrl+C или docker stop)
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	sig := <-quit
+	log.Printf("Получен сигнал %v, начинаю graceful shutdown...\n", sig)
+
+	timeoutStr := "25s"
+	timeout, _ := time.ParseDuration(timeoutStr)
+
+	_, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	if err := app.Shutdown(); err != nil {
+		log.Printf("Ошибка при остановке Fiber: %v\n", err)
+	} else {
+		log.Println("Сервер остановлен корректно")
+	}
 }

@@ -3,6 +3,7 @@ services:
     build:
       context: "./FeedServiceFrontend"
       dockerfile: Dockerfile
+    stop_signal: SIGQUIT
     ports:
       - "3000:80"
     depends_on:
