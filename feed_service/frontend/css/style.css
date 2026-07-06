@@ -80,6 +80,10 @@ body {
     border-color: var(--primary);
 }
 
+.btn-primary:disabled, .btn-primary:disabled:hover {
+    background: var(--primary-opacity);
+}
+
 .btn-primary:hover {
     background-color: var(--primary-dark);
 }

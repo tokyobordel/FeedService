@@ -3,6 +3,7 @@ package notify
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"time"
@@ -18,24 +19,24 @@ import (
 //
 // Параметры:
 //   - payload: map с данными уведомления (тип, email, сообщение и т.д.).
-func sendPayload(payload map[string]interface{}) {
+func sendPayload(payload map[string]interface{}) error {
 	notifyURL := utils.GetEnv("NOTIFY_URL", "")
 	if notifyURL == "" {
 		log.Println("Уведомления отключены")
-		return
+		return fmt.Errorf("Уведомления отключены")
 	}
 
 	body, err := json.Marshal(payload)
 	if err != nil {
 		log.Printf("Ошибка формирования уведомления: %v", err)
-		return
+		return fmt.Errorf("Ошибка формирования уведомления")
 	}
 
 	client := &http.Client{Timeout: 5 * time.Second}
 	resp, err := client.Post(notifyURL, "application/json", bytes.NewReader(body))
 	if err != nil {
 		log.Printf("Ошибка отправки уведомления: %v", err)
-		return
+		return fmt.Errorf("Ошибка отправки уведомления")
 	}
 	defer resp.Body.Close()
 
@@ -44,4 +45,6 @@ func sendPayload(payload map[string]interface{}) {
 	} else {
 		log.Printf("Уведомление отправлено")
 	}
+
+	return err
 }

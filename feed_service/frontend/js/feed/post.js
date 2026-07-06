@@ -1,3 +1,6 @@
+import { getSavedUser } from '../index.js';
+import { loadUserFeedById } from '../feed/feed.js';
+
 /**
  * Переключает видимость изображений в слайдере поста на предыдущее.
  *
@@ -5,28 +8,21 @@
  * с id `images_${postId}` и, если существует предыдущий соседний элемент,
  * скрывает текущее и показывает предыдущее.
  *
- * @global
  * @function prevImage
- * @memberof window
- * @param {number|string} postId - Идентификатор поста, для которого переключается слайдер.
- * @requires HTML-элемент с id `images_${postId}`, внутри которого есть элементы
- *           с классом `showedImage`.
+ * @param {number|string} postId - Идентификатор поста.
  * @returns {void}
- *
- * @example
- * // Вызов из обработчика клика
- * <span onClick="prevImage(42)">←</span>
  */
-window.prevImage = (postId) => {
+function prevImage(postId) {
     const imagesBlock = document.getElementById("images_" + postId);
+    if (!imagesBlock) return;
     const currentImage = imagesBlock.querySelector(".showedImage");
+    if (!currentImage) return;
     const prevImageLink = currentImage.parentElement.previousElementSibling;
-    if(prevImageLink && prevImageLink.children.length != 0) {
-        const prevImage = prevImageLink.children[0];
-
-        if (prevImage) {
+    if (prevImageLink && prevImageLink.children.length !== 0) {
+        const prevImg = prevImageLink.children[0];
+        if (prevImg) {
             currentImage.classList.remove('showedImage');
-            prevImage.classList.add('showedImage');
+            prevImg.classList.add('showedImage');
         }
     }
 }
@@ -38,28 +34,21 @@ window.prevImage = (postId) => {
  * с id `images_${postId}` и, если существует следующий соседний элемент,
  * скрывает текущее и показывает следующий.
  *
- * @global
  * @function nextImage
- * @memberof window
- * @param {number|string} postId - Идентификатор поста, для которого переключается слайдер.
- * @requires HTML-элемент с id `images_${postId}`, внутри которого есть элементы
- *           с классом `showedImage`.
+ * @param {number|string} postId - Идентификатор поста.
  * @returns {void}
- *
- * @example
- * // Вызов из обработчика клика
- * <span onClick="nextImage(42)">→</span>
  */
-window.nextImage = (postId) => {
+function nextImage(postId) {
     const imagesBlock = document.getElementById("images_" + postId);
+    if (!imagesBlock) return;
     const currentImage = imagesBlock.querySelector(".showedImage");
+    if (!currentImage) return;
     const nextImageLink = currentImage.parentElement.nextElementSibling;
-    if(nextImageLink && nextImageLink.children.length != 0) {
-        const nextImage = nextImageLink.children[0];
-
-        if (nextImage) {
+    if (nextImageLink && nextImageLink.children.length !== 0) {
+        const nextImg = nextImageLink.children[0];
+        if (nextImg) {
             currentImage.classList.remove('showedImage');
-            nextImage.classList.add('showedImage');
+            nextImg.classList.add('showedImage');
         }
     }
 }
@@ -68,8 +57,7 @@ window.nextImage = (postId) => {
  * Генерирует HTML-разметку карточки поста со слайдером изображений.
  *
  * Использует `process.env.IS_URL` - URL ImageService - для формирования полного URL изображений.
- * Если у поста есть несколько изображений, добавляет кнопки навигации,
- * вызывающие глобальные функции {@link window.prevImage} и {@link window.nextImage}.
+ * Если у поста есть несколько изображений, добавляет кнопки навигации.
  *
  * @function createPost
  * @param {Object} post - Объект с данными поста.
@@ -78,36 +66,32 @@ window.nextImage = (postId) => {
  * @param {string} [post.username] - Имя автора.
  * @param {string} [post.title] - Заголовок поста.
  * @param {string} [post.description] - Описание поста.
- * @param {string} [post.created_at] - Дата создания (в строковом представлении).
+ * @param {string} [post.created_at] - Дата создания.
  * @param {Array<number|string>} [post.images] - Массив идентификаторов изображений.
  * @returns {string} HTML-строка с карточкой поста.
- * @requires process.env.IS_URL - базовый URL ImageService для загрузки изображений.
  *
  * @example
- * const postHTML = createPost({
- *   id: 1,
- *   title: "Закат",
- *   images: [101, 102],
- *   username: "Анна",
- *   created_at: "2025-01-01"
- * });
- * document.body.innerHTML += postHTML;
+ * const postHTML = createPost({ id: 1, title: "Закат", images: [101, 102] });
  */
 export function createPost(post) {
-    let sliderImages = "<div class='img-slider'>"
+    let sliderImages = "<div class='img-slider'>";
 
-    for(const imageId of post.images || []) {
-        sliderImages += `<a href="${process.env.IS_URL}/api/images/${imageId}" target="_blank"><img alt="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSPshUBFBR7xshIaXFc_ir-eagtAueBv7aX5Nvxdny6qg&s" 
-            id="image_${imageId}"  src="${process.env.IS_URL}/api/images/icon/${imageId}"" class="postImage"></a>`
+    for (const imageId of post.images || []) {
+        sliderImages += `<a href="${process.env.IS_URL}/api/images/${imageId}" target="_blank">
+            <img id="image_${imageId}" src="${process.env.IS_URL}/api/images/icon/${imageId}" class="postImage">
+        </a>`;
     }
-    sliderImages += "</div>"
+    sliderImages += "</div>";
 
     const tools = `
         <div class="imageTools">
-            <span onClick="prevImage(${post.id})" class="imageBtn imagePrev"><span class="fa fa-arrow-left"></span></span>
-            <span onClick="nextImage(${post.id})" class="imageBtn imageNext"><span class="fa fa-arrow-right"></span>
-        </div>`
-
+            <span class="imageBtn imagePrev" data-post-id="${post.id}" data-action="prev">
+                <span class="fa fa-arrow-left"></span>
+            </span>
+            <span class="imageBtn imageNext" data-post-id="${post.id}" data-action="next">
+                <span class="fa fa-arrow-right"></span>
+            </span>
+        </div>`;
 
     return `
         <div class="post-card" id="post_${post.id}">
@@ -129,18 +113,51 @@ export function createPost(post) {
     `;
 }
 
+/**
+ * Навешивает обработчики событий на элементы внутри постов после рендеринга.
+ *
+ * - Первому изображению в каждом слайдере добавляет класс `showedImage`.
+ * - Для кнопок `.imagePrev` и `.imageNext` делегирует вызовы `prevImage` и `nextImage`.
+ * - Для элементов `.post-author` добавляет клик-обработчик, загружающий ленту автора,
+ *   если текущий пользователь подтверждён.
+ *
+ * @function createPostsHandlers
+ * @returns {void}
+ */
 export function createPostsHandlers() {
+    // Показать первые изображения
     document.querySelectorAll('.img-slider a:first-child .postImage').forEach(el => {
-        console.log(el)
-        el.classList.add("showedImage")
+        el.classList.add("showedImage");
     });
 
+    // Ловим все ошибки загрузки картинок на странице на фазе перехвата
+    document.addEventListener('error', (event) => {
+        if (event.target.tagName.toLowerCase() === 'img') {
+            event.target.src = 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSPshUBFBR7xshIaXFc_ir-eagtAueBv7aX5Nvxdny6qg&amp;s'; // Подставляем заглушку
+        }
+    }, true); // <- Важно: true включает перехват (capture)
+
+
+    // Делегирование навигации слайдера
+    document.querySelectorAll('.imagePrev, .imageNext').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const postId = e.currentTarget.dataset.postId;
+            const action = e.currentTarget.dataset.action;
+            if (action === 'prev') {
+                prevImage(postId);
+            } else if (action === 'next') {
+                nextImage(postId);
+            }
+        });
+    });
+
+    // Обработчики клика по автору
     document.querySelectorAll('.post-author').forEach(el => {
         el.addEventListener('click', (e) => {
-            const user = getSavedUser()
-            const userId = e.target.dataset.userId;
-            if (userId) {
-                if(user && user.is_confirmed) loadUserFeed(parseInt(userId));
+            const user = getSavedUser();
+            const userId = e.currentTarget.dataset.userId;
+            if (userId && user && user.is_confirmed) {
+                loadUserFeedById(parseInt(userId));
             }
         });
     });

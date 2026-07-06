@@ -12,20 +12,20 @@ export function clearSession() {
     localStorage.removeItem('user');
 }
 
+import { showGuestUI } from '../index.js';
+
 /**
  * Инициализирует обработчик клика по кнопке выхода (`#btnLogout`).
  *
  * При клике:
  * - Отправляет POST-запрос на `/api/logout` для инвалидации сессии на сервере
  *   (ошибка запроса игнорируется).
- * - Очищает локальную сессию вызовом {@link clearSession}.
- * - Обновляет интерфейс вызовом глобальной функции {@link showGuestUI}.
+ * - Очищает локальную сессию вызовом {@link module:handlers/logout.clearSession}.
+ * - Обновляет интерфейс вызовом {@link module:main.showGuestUI}.
  *
  * @function initLogoutHandler
- * @global
+ * @requires module:main.showGuestUI
  * @requires HTML-элемент с id: `btnLogout`.
- * @requires {function} showGuestUI - глобальная функция для отображения
- *           гостевого интерфейса.
  * @returns {void}
  *
  * @example
@@ -34,7 +34,7 @@ export function clearSession() {
  */
 export function initLogoutHandler() {
     const btnLogout = document.getElementById('btnLogout');
-    
+
     btnLogout.addEventListener('click', async () => {
         try {
             await fetch('/api/logout', {
@@ -42,6 +42,7 @@ export function initLogoutHandler() {
                 headers: { 'Content-Type': 'application/json' }
             });
         } catch (e) {
+            // игнорируем ошибку запроса
         }
         clearSession();
         showGuestUI();

@@ -4,49 +4,45 @@
  * Выполняет клиентскую валидацию: поля логина и пароля обязательны.
  *
  * При успешном входе:
- * - сохраняет сессию пользователя через {@link window.saveSession},
- * - обновляет интерфейс вызовом {@link showLoggedInUI},
- * - закрывает модальное окно через {@link closeModal} (предполагается,
- *   что форма находится в модальном окне, доступном через глобальную
- *   переменную `signinModal`).
+ * - сохраняет сессию пользователя через {@link module:main.saveSession},
+ * - обновляет интерфейс вызовом {@link module:main.showLoggedInUI},
+ * - закрывает модальное окно через {@link module:main.closeModal}
+ *   (предполагается, что форма находится в модальном окне `#signinModal`).
  *
  * Ошибки (сетевые, API, отсутствие обязательных данных в ответе)
  * выводятся в элемент `#signinError`.
  *
  * @function initSigninHandlers
- * @global
+ * @requires module:main.closeModal
+ * @requires module:main.saveSession
+ * @requires module:main.showLoggedInUI
+ * @requires module:main.toggleConfirmedUI
  * @requires HTML-элементы с id: `signinForm`, `signinError`, `signinUsername`,
- *           `signinPassword`.
- * @requires {HTMLElement} signinModal - глобальная переменная, содержащая
- *           DOM-элемент модального окна, которое будет закрыто после успешного входа.
- * @requires {function} showLoggedInUI - глобальная функция для обновления
- *           интерфейса после входа, принимает объект пользователя.
- * @requires {function} closeModal - глобальная функция для закрытия
- *           переданного модального окна.
+ *           `signinPassword`, `signinModal`.
  * @returns {void}
  *
  * @example
  * // Вызов после загрузки DOM
  * document.addEventListener('DOMContentLoaded', initSigninHandlers);
  */
+import { closeModal, saveSession, showLoggedInUI, toggleConfirmedUI } from '../index.js';
+
 export function initSigninHandlers() {
     const signinForm = document.getElementById('signinForm');
     const signinError = document.getElementById('signinError');
-
-    // Сохраняем токены и пользователя в localStorage
-    window.saveSession = (user) => {
-        localStorage.setItem('user', JSON.stringify(user));
-    }
+    const signinModal = document.getElementById('signinModal');
 
     signinForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         signinError.textContent = '';
+        e.submitter.disabled = true;
 
         const username = document.getElementById('signinUsername').value.trim();
         const password = document.getElementById('signinPassword').value;
 
         if (!username || !password) {
             signinError.textContent = 'Заполните все поля';
+            e.submitter.disabled = false;
             return;
         }
 
@@ -64,23 +60,19 @@ export function initSigninHandlers() {
                 throw new Error(data.err_message || 'Ошибка входа');
             }
 
-            // data.data должен содержать { access_token, refresh_token, user }
             const { access_token, refresh_token, user } = data.data;
             if (!access_token || !refresh_token || !user) {
                 throw new Error('Некорректный ответ сервера');
             }
 
-            // Сохраняем сессию
             saveSession(user);
-
-            // Обновляем UI
             showLoggedInUI(user);
-
             closeModal(signinModal);
-
-            toggleConfirmedUI()
+            toggleConfirmedUI();
         } catch (err) {
             signinError.textContent = err.message;
+        } finally {
+            e.submitter.disabled = false;
         }
     });
 }

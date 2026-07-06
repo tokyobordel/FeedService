@@ -4,12 +4,10 @@
 package main
 
 import (
-	"context"
 	"log"
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 	"traineesheep/feedservice/internal/app"
 	"traineesheep/feedservice/internal/controller"
 	"traineesheep/feedservice/internal/database"
@@ -66,12 +64,6 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	sig := <-quit
 	log.Printf("Получен сигнал %v, начинаю graceful shutdown...\n", sig)
-
-	timeoutStr := "25s"
-	timeout, _ := time.ParseDuration(timeoutStr)
-
-	_, cancel := context.WithTimeout(context.Background(), timeout)
-	defer cancel()
 
 	if err := app.Shutdown(); err != nil {
 		log.Printf("Ошибка при остановке Fiber: %v\n", err)

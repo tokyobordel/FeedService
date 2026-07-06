@@ -28,9 +28,7 @@ module.exports = (env, argv) => {
       proxy: [
         {
           context: ['/api'],
-          // target: 'http://10.64.11.142:8080',
-          // target: 'http://192.168.56.1:8080',
-          target: process.env.FS_URL,
+          target: 'http://localhost:8080',
           changeOrigin: true,
           pathRewrite: {
             '^/api': '',
