@@ -20,10 +20,14 @@
 window.prevImage = (postId) => {
     const imagesBlock = document.getElementById("images_" + postId);
     const currentImage = imagesBlock.querySelector(".showedImage");
-    const prevImage = currentImage.previousElementSibling;
-    if(prevImage) {
-        currentImage.classList.remove('showedImage');
-        prevImage.classList.add('showedImage');
+    const prevImageLink = currentImage.parentElement.previousElementSibling;
+    if(prevImageLink && prevImageLink.children.length != 0) {
+        const prevImage = prevImageLink.children[0];
+
+        if (prevImage) {
+            currentImage.classList.remove('showedImage');
+            prevImage.classList.add('showedImage');
+        }
     }
 }
 
@@ -49,10 +53,14 @@ window.prevImage = (postId) => {
 window.nextImage = (postId) => {
     const imagesBlock = document.getElementById("images_" + postId);
     const currentImage = imagesBlock.querySelector(".showedImage");
-    const nextImage = currentImage.nextElementSibling;
-    if(nextImage) {
-        currentImage.classList.remove('showedImage');
-        nextImage.classList.add('showedImage');
+    const nextImageLink = currentImage.parentElement.nextElementSibling;
+    if(nextImageLink && nextImageLink.children.length != 0) {
+        const nextImage = nextImageLink.children[0];
+
+        if (nextImage) {
+            currentImage.classList.remove('showedImage');
+            nextImage.classList.add('showedImage');
+        }
     }
 }
 
@@ -86,7 +94,7 @@ window.nextImage = (postId) => {
  * document.body.innerHTML += postHTML;
  */
 export function createPost(post) {
-    let sliderImages = "<div>"
+    let sliderImages = "<div class='img-slider'>"
 
     for(const imageId of post.images || []) {
         sliderImages += `<a href="${process.env.IS_URL}/api/images/${imageId}" target="_blank"><img alt="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSPshUBFBR7xshIaXFc_ir-eagtAueBv7aX5Nvxdny6qg&s" 
@@ -122,7 +130,8 @@ export function createPost(post) {
 }
 
 export function createPostsHandlers() {
-    document.querySelectorAll('.postImage:first-child').forEach(el => {
+    document.querySelectorAll('.img-slider a:first-child .postImage').forEach(el => {
+        console.log(el)
         el.classList.add("showedImage")
     });
 
