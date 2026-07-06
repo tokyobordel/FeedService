@@ -64,4 +64,10 @@ func Create(app *fiber.App, us *service.UserService,
 
 	// Загрузка изображений
 	app.Post("/upload", middleware.AuthRequired, ctrl.Upload)
+
+	// Подтверждение регистрации
+	app.Get("/confirm", middleware.ConfirmRequired, ctrl.Confrim)
+
+	// Отправка уведомления о подтверждении
+	app.Get("/send_confirm", middleware.AuthRequired, ctrl.SendConfrim)
 }

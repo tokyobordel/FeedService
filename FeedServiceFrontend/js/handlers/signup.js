@@ -28,6 +28,7 @@
 export function initSignupHandlers() {
     const signupForm = document.getElementById('signupForm');
     const signupError = document.getElementById('signupError');
+    const confirmModal = document.getElementById('confirmModal');
 
     signupForm.addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -75,6 +76,22 @@ export function initSignupHandlers() {
             }
 
             closeModal(signupModal); // форма сбросится
+
+            openModal(confirmModal)
+
+            // data.data должен содержать { user }
+            const { user } = data.data;
+            if (!user) {
+                throw new Error('Некорректный ответ сервера');
+            }
+
+            // Сохраняем сессию
+            saveSession(user);
+
+            // Обновляем UI
+            showLoggedInUI(user);
+
+            toggleConfirmedUI()
         } catch (err) {
             signupError.textContent = err.message;
         }

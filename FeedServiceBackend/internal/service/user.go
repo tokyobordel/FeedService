@@ -41,3 +41,8 @@ func (us *UserService) GetByUsername(username string) (models.User, error) {
 func (us *UserService) GetByID(userID int) (models.User, error) {
 	return us.userDAO.GetByID(userID)
 }
+
+// ConfirmUserAccount подтверждает регистрацию пользователя.
+func (us *UserService) ConfirmUserAccount(userID int) error {
+	return us.userDAO.ConfirmUserAccount(userID)
+}

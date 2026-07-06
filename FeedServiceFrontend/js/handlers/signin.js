@@ -77,6 +77,8 @@ export function initSigninHandlers() {
             showLoggedInUI(user);
 
             closeModal(signinModal);
+
+            toggleConfirmedUI()
         } catch (err) {
             signinError.textContent = err.message;
         }

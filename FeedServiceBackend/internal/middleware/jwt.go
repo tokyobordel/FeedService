@@ -51,12 +51,37 @@ var RefreshTokenRequired = jwtware.New(jwtware.Config{
 	},
 })
 
+// ConfirmRequired — middleware, требующий валидный token в параметрах запроса.
+// Используется для подтверждения регистрации.
+// При отсутствии или невалидном токене возвращает 500 с описанием ошибки.
+var ConfirmRequired = jwtware.New(jwtware.Config{
+	SigningKey:  jwtware.SigningKey{Key: jwtSecret},
+	TokenLookup: "query:token",
+	ErrorHandler: func(c *fiber.Ctx, err error) error {
+		return c.Status(fiber.StatusInternalServerError).JSON(utils.ApiResponse{
+			Success: false, ErrMessage: err.Error(),
+		})
+	},
+})
+
 // GenerateAccessToken создаёт подписанный JWT access_token для указанного
 // пользователя. Токен действителен 5 минут.
 func GenerateAccessToken(userID int) (string, error) {
 	claims := jwt.MapClaims{
 		"sub": strconv.Itoa(userID),
 		"exp": time.Now().Add(5 * time.Minute).Unix(),
+		"iat": time.Now().Unix(),
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return token.SignedString(jwtSecret)
+}
+
+// GenerateConfirmToken создаёт подписанный JWT token
+// для подтверждения регистрации указанного пользователя. Токен действителен 24 часа.
+func GenerateConfirmToken(userID int) (string, error) {
+	claims := jwt.MapClaims{
+		"sub": strconv.Itoa(userID),
+		"exp": time.Now().Add(24 * time.Hour).Unix(),
 		"iat": time.Now().Unix(),
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)

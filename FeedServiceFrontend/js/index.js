@@ -37,6 +37,7 @@ import { initSigninHandlers } from './handlers/signin.js';
 import { initSignupHandlers } from './handlers/signup.js';
 import { initUploadHandlers } from './handlers/upload.js';
 import { refreshAccessToken } from './handlers/refresh.js';
+import { initRepeatConfirmHandlers } from './handlers/confirm.js';
 
 document.addEventListener('DOMContentLoaded', () => {
     // Модальные окна
@@ -187,6 +188,27 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     /**
+     * Показывает элементы UI, доступные только при неактивной учетной записи (is_confirmed = false)
+     * Подсвечивает никнейм красным цветом и управляет видимостью кнопки добавления постов
+     *
+     * @global
+     * @function getSavedUser
+     * @memberof window
+     * @returns {void}
+     */
+    window.toggleConfirmedUI = () => {
+        const user = getSavedUser()
+        if(user) {
+            user.is_confirmed
+                ? userNameDisplay.classList.remove("not-confirmed")
+                : userNameDisplay.classList.add("not-confirmed");
+            user.is_confirmed
+                ? uploadBtn.style.display = 'inline-flex'
+                : uploadBtn.style.display = 'none';
+        }
+    }
+
+    /**
      * Проверяет наличие сессии при загрузке страницы.
      * Пытается обновить токен доступа, затем на основе наличия сохранённого
      * пользователя показывает соответствующий интерфейс.
@@ -199,6 +221,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const user = getSavedUser();
             if (user) {
                 showLoggedInUI(user);
+                toggleConfirmedUI()
             } else {
                 showGuestUI();
             }
@@ -212,4 +235,5 @@ document.addEventListener('DOMContentLoaded', () => {
     checkAuthOnLoad();
     initFeed();
     initUploadHandlers();
+    initRepeatConfirmHandlers();
 });
