@@ -1,10 +1,15 @@
 const path = require('path');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 const Dotenv = require('dotenv-webpack');
+const dotenv = require('dotenv');
 
 module.exports = (env, argv) => {
   const isProduction = argv.mode === 'production';
   console.log("FeedServiceFrontend: загружен " + argv.mode + " конфиг")
+
+  dotenv.config({
+    path: `./.env.${argv.mode}`
+  });
 
   return {
     entry: './js/index.js',
@@ -25,7 +30,7 @@ module.exports = (env, argv) => {
           context: ['/api'],
           // target: 'http://10.64.11.142:8080',
           // target: 'http://192.168.56.1:8080',
-          target: 'http://10.64.11.174:8080',
+          target: process.env.FS_URL,
           changeOrigin: true,
           pathRewrite: {
             '^/api': '',
