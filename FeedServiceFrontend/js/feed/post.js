@@ -89,8 +89,8 @@ export function createPost(post) {
     let sliderImages = "<div>"
 
     for(const imageId of post.images || []) {
-        sliderImages += `<img alt="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSPshUBFBR7xshIaXFc_ir-eagtAueBv7aX5Nvxdny6qg&s" 
-            id="image_${imageId}" src="${process.env.IS_URL}/api/images/${imageId}"" class="postImage">`
+        sliderImages += `<a href="${process.env.IS_URL}/api/images/${imageId}" target="_blank"><img alt="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSPshUBFBR7xshIaXFc_ir-eagtAueBv7aX5Nvxdny6qg&s" 
+            id="image_${imageId}"  src="${process.env.IS_URL}/api/images/icon/${imageId}"" class="postImage"></a>`
     }
     sliderImages += "</div>"
 
