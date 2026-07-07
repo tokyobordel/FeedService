@@ -68,7 +68,7 @@ func Create(app *fiber.App, us *service.UserService,
 	// Отправка уведомления о подтверждении
 	app.Get("/send_confirm", middleware.TokenAuth, ctrl.SendConfirm)
 
-	// healthcheck
+	// Забираем данные текущего залогиненного пользователя
 	app.Get("/get_user", middleware.TokenAuth, ctrl.GetUser)
 
 	// healthcheck
