@@ -1,12 +1,9 @@
 package controller
 
 import (
-	"fmt"
 	"log"
-	"traineesheep/feedservice/internal/middleware"
-	models "traineesheep/feedservice/internal/model"
+	client "traineesheep/feedservice/internal/client/notify"
 	"traineesheep/feedservice/internal/utils"
-	"traineesheep/feedservice/pkg/email"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -33,7 +30,7 @@ func (ctrl *Controller) SendConfirm(c *fiber.Ctx) error {
 		})
 	}
 
-	sendError := SendConfirmationEmail(user)
+	sendError := client.SendConfirmationEmail(user)
 	if sendError != nil {
 		log.Printf("GET /send_confirm: Ошибка отправки уведомления на почту %s")
 		return c.Status(fiber.StatusBadRequest).JSON(utils.ApiResponse{
@@ -49,30 +46,4 @@ func (ctrl *Controller) SendConfirm(c *fiber.Ctx) error {
 		Success:    true,
 		ErrMessage: "",
 	})
-}
-
-func SendConfirmationEmail(user models.User) error {
-	smtpData, smtpError := utils.GetSMTPData()
-	if smtpError != nil {
-		return smtpError
-	}
-
-	// Создаем токен
-	conifrmToken, err := middleware.GenerateConfirmToken(user.ID)
-
-	if err != nil {
-		log.Printf("Не удалось сгенерировать токен для пользователя %s[id=%d]", user.Username)
-	} else {
-		emailHost := utils.GetEnv("EMAIL_HOST", "http://localhost:3000")
-		url := emailHost + "/api/confirm?token=" + conifrmToken
-		msg := fmt.Sprintf("%s, перейдите по ссылке для подтверждения регистрации перейдите по ссылке: %s",
-			user.Username, url)
-		smtp := email.NewSmtpDTO(smtpData["SMTP_EMAIL"],
-			smtpData["SMTP_PASSWORD"],
-			smtpData["SMTP_HOST"],
-			smtpData["SMTP_PORT"])
-		smtp.SendMessage([]string{user.Email}, msg, "user_confirm")
-	}
-
-	return err
 }

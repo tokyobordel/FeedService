@@ -17,17 +17,25 @@ import (
 // Таблица refresh_tokens закомментирована, так как в текущей итерации
 // хранение токенов реализовано в памяти.
 func Migrate(db *sql.DB) {
+	log.Println("Дропаем таблицы")
+
+	dropTables := `DROP TABLE IF EXISTS users, post, image_post CASCADE;`
+	if _, err := db.Exec(dropTables); err != nil {
+		log.Fatalf("Ошибка удаления таблиц: %v", err)
+	}
+	log.Println("Таблицы удалены")
+
 	log.Println("Создаем таблицы")
 
 	createUsersTable := `
 		CREATE TABLE IF NOT EXISTS users (
 			id SERIAL PRIMARY KEY,
-			username VARCHAR(255) NOT NULL,
+			username VARCHAR(255) NOT NULL UNIQUE,
 			password VARCHAR(255) NOT NULL,
-			email VARCHAR(255) NOT NULL,
-		    is_confirmed BOOLEAN DEFAULT FALSE,
+			email VARCHAR(255) NOT NULL UNIQUE,
+			is_confirmed BOOLEAN DEFAULT FALSE,
 			created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW()
-	);`
+		);`
 
 	createPostTable := `
 		CREATE TABLE IF NOT EXISTS post (

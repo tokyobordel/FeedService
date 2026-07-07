@@ -1,3 +1,4 @@
+import FeedAPI from '../client/feed_service'
 /**
  * Инициализирует обработчик кнопки повторной отправки письма подтверждения (`#repeat-confirm`).
  *
@@ -22,19 +23,11 @@ export function initRepeatConfirmHandlers() {
         confirmBtn.disabled = true;
 
         try {
-            const response = await fetch('/api/send_confirm', {
-                method: 'GET',
-                headers: { 'Content-Type': 'application/json' },
-            });
-
-            const data = await response.json();
-
-            if (!response.ok || !data.success) {
-                throw new Error(data.err_message || 'Ошибка. Попробуйте позже');
-            }
+            await FeedAPI.sendConfirmation();
         } catch (err) {
             confirmError.textContent = err.message;
+        } finally {
+            confirmBtn.disabled = false;
         }
-        confirmBtn.disabled = false;
     });
 }

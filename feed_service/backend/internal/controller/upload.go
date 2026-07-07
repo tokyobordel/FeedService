@@ -1,55 +1,13 @@
 package controller
 
 import (
-	"bytes"
-	"encoding/base64"
-	"encoding/json"
 	"fmt"
-	"io"
 	"log"
-	"mime"
-	"net/http"
-	"path/filepath"
 	"strings"
-	"time"
-	jwt "traineesheep/feedservice/internal/middleware"
 	"traineesheep/feedservice/internal/utils"
 
 	"github.com/gofiber/fiber/v2"
 )
-
-// mimeTypeByExtension возвращает MIME-тип файла на основе его расширения.
-// Если расширение отсутствует или не распознано, возвращает "application/octet-stream".
-func mimeTypeByExtension(filename string) string {
-	ext := filepath.Ext(filename)
-	if ext == "" {
-		return "application/octet-stream"
-	}
-	mt := mime.TypeByExtension(ext)
-	if mt == "" {
-		return "application/octet-stream"
-	}
-	// возвращаем основную часть, например "image/jpeg"
-	if i := strings.Index(mt, ";"); i != -1 {
-		return mt[:i]
-	}
-	return mt
-}
-
-// mediaTypeToShort преобразует полный MIME-тип в короткий формат (например, "image/jpeg" → "jpeg").
-// Если тип не содержит '/', возвращает исходную строку.
-func mediaTypeToShort(mediaType string) string {
-	parts := strings.SplitN(mediaType, "/", 2)
-	if len(parts) < 2 {
-		return mediaType
-	}
-	subtype := parts[1]
-	// убираем возможный суффикс, например "svg+xml" -> "svg"
-	if idx := strings.Index(subtype, "+"); idx != -1 {
-		subtype = subtype[:idx]
-	}
-	return subtype
-}
 
 // Upload обрабатывает POST-запрос на загрузку изображений и создание поста.
 //
@@ -61,13 +19,6 @@ func mediaTypeToShort(mediaType string) string {
 //
 // Заголовки безопасности: требует валидный access-токен в куке для
 // идентификации пользователя.
-//
-// Возможные ответы:
-//   - 201: { success: true, data: { "post": post, "image_ids": [...] } }
-//   - 400: различные ошибки валидации (неверный Content-Type, отсутствие файлов,
-//     превышение лимита, слишком большой файл и т.д.)
-//   - 401: некорректный токен
-//   - 500: внутренние ошибки (ImageService недоступен, ошибка создания поста и т.д.)
 func (ctrl *Controller) Upload(c *fiber.Ctx) error {
 	// Проверяем Content-Type
 	contentType := string(c.Request().Header.ContentType())
@@ -107,138 +58,6 @@ func (ctrl *Controller) Upload(c *fiber.Ctx) error {
 		}
 	}
 
-	// URL внешнего сервиса
-	imageAddURL := utils.GetEnv("IMAGE_ADD_URL", "")
-	if imageAddURL == "" {
-		return c.Status(fiber.StatusInternalServerError).JSON(utils.ApiResponse{
-			Success: false, ErrMessage: "ImageService не настроен",
-		})
-	}
-
-	// Структура ответа от внешнего сервиса (предполагаем {"id": 123})
-	type externalImageResponse struct {
-		ID int `json:"id"`
-	}
-
-	var imageIDs []int // сюда соберём полученные id
-
-	// Отправляем каждый файл во внешний сервис
-	for _, fileHeader := range files {
-		file, err := fileHeader.Open()
-		if err != nil {
-			return c.Status(fiber.StatusInternalServerError).JSON(utils.ApiResponse{
-				Success: false, ErrMessage: "Не удалось прочитать файл",
-			})
-		}
-
-		fileBytes, err := io.ReadAll(file)
-		file.Close() // закрываем сразу, как прочитали
-		if err != nil {
-			return c.Status(fiber.StatusInternalServerError).JSON(utils.ApiResponse{
-				Success: false, ErrMessage: "Ошибка чтения файла",
-			})
-		}
-
-		// Определяем media_type: сначала пробуем из заголовка, затем по расширению
-		mediaType := fileHeader.Header.Get("Content-Type")
-		if mediaType == "" {
-			mediaType = mimeTypeByExtension(fileHeader.Filename)
-		}
-
-		shortMediaType := mediaTypeToShort(mediaType)
-		if shortMediaType == "" {
-			shortMediaType = "octet-stream"
-		}
-
-		// Кодируем содержимое в base64
-		encodedData := base64.StdEncoding.EncodeToString(fileBytes)
-
-		// Формируем тело JSON
-		requestBody := map[string]string{
-			"name":       strings.TrimSuffix(fileHeader.Filename, filepath.Ext(fileHeader.Filename)),
-			"media_type": shortMediaType,
-			"data":       encodedData,
-		}
-		jsonBody, err := json.Marshal(requestBody)
-		if err != nil {
-			return c.Status(fiber.StatusInternalServerError).JSON(utils.ApiResponse{
-				Success: false, ErrMessage: "Ошибка подготовки данных",
-			})
-		}
-
-		// Отправляем POST-запрос с Content-Type: application/json
-		httpReq, err := http.NewRequest("POST", imageAddURL, bytes.NewReader(jsonBody))
-		if err != nil {
-			return c.Status(fiber.StatusInternalServerError).JSON(utils.ApiResponse{
-				Success: false, ErrMessage: "Внутренняя ошибка",
-			})
-		}
-		httpReq.Header.Set("Content-Type", "application/json")
-
-		client := &http.Client{Timeout: 10 * time.Second}
-		resp, err := client.Do(httpReq)
-		if err != nil {
-			return c.Status(fiber.StatusInternalServerError).JSON(utils.ApiResponse{
-				Success: false, ErrMessage: "Не удалось сохранить изображение в ImageService",
-			})
-		}
-		defer resp.Body.Close()
-
-		if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-			bodyBytes, _ := io.ReadAll(resp.Body)
-			log.Printf("Ошибка внешнего сервиса: статус %d, тело %s", resp.StatusCode, string(bodyBytes))
-			return c.Status(fiber.StatusInternalServerError).JSON(utils.ApiResponse{
-				Success: false, ErrMessage: "ImageService вернул ошибку",
-			})
-		}
-
-		var extResp utils.ApiResponse
-		if err := json.NewDecoder(resp.Body).Decode(&extResp); err != nil {
-			return c.Status(fiber.StatusInternalServerError).JSON(utils.ApiResponse{
-				Success: false, ErrMessage: "Неверный ответ от ImageService",
-			})
-		}
-
-		// 1. Приводим Data к map[string]interface{}
-		dataMap, ok := extResp.Data.(map[string]interface{})
-		if !ok {
-			return c.Status(fiber.StatusInternalServerError).JSON(utils.ApiResponse{
-				Success: false, ErrMessage: "Неверный формат данных от ImageService",
-			})
-		}
-
-		// 2. Извлекаем id
-		idRaw, exists := dataMap["id"]
-		if !exists {
-			return c.Status(fiber.StatusInternalServerError).JSON(utils.ApiResponse{
-				Success: false, ErrMessage: "Поле id отсутствует в ответе ImageService",
-			})
-		}
-
-		// 3. Пробуем привести к float64 (стандартный числовой тип из JSON)
-		idFloat, ok := idRaw.(float64)
-		if !ok {
-			// Иногда id может быть строкой или другим типом — обработаем и это
-			return c.Status(fiber.StatusInternalServerError).JSON(utils.ApiResponse{
-				Success: false, ErrMessage: "Неверный тип id в ответе ImageService",
-			})
-		}
-
-		// 4. Преобразуем в int
-		imageID := int(idFloat)
-
-		imageIDs = append(imageIDs, imageID)
-	}
-
-	// Все файлы успешно отправлены, создаём пост и записи в image_post
-	refreshToken := c.Cookies("refresh_token")
-	userID, userIDError := jwt.ParseToken(refreshToken)
-	if userIDError != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(utils.ApiResponse{
-			Success: false, ErrMessage: "Некорректный токен",
-		})
-	}
-
 	title := c.FormValue("title")
 	description := c.FormValue("description")
 
@@ -247,9 +66,20 @@ func (ctrl *Controller) Upload(c *fiber.Ctx) error {
 		title = "Без названия"
 	}
 
-	post, postError := ctrl.FeedService.CreatePost(userID, title, description, imageIDs)
+	userID, ok := c.Locals("user").(int)
+
+	if !ok {
+		log.Println("Отсутствует ID внутри контекста")
+		return c.Status(fiber.StatusBadRequest).JSON(utils.ApiResponse{
+			Data:       nil,
+			Success:    false,
+			ErrMessage: "Некорректные данные",
+		})
+	}
+
+	post, postError := ctrl.FeedService.CreatePost(userID, title, description, files)
 	if postError != nil {
-		c.Status(fiber.StatusInternalServerError).JSON(utils.ApiResponse{
+		return c.Status(fiber.StatusInternalServerError).JSON(utils.ApiResponse{
 			Success:    false,
 			Data:       nil,
 			ErrMessage: "Ошибка создания поста",
@@ -258,13 +88,13 @@ func (ctrl *Controller) Upload(c *fiber.Ctx) error {
 
 	log.Printf("POST /upload: Пользователь %s отправил %d фото, создан пост с ID=%d",
 		userID,
-		len(imageIDs),
+		len(post.Images),
 		post.ID)
 	return c.Status(fiber.StatusCreated).JSON(utils.ApiResponse{
 		Success: true,
 		Data: fiber.Map{
 			"post":      post,
-			"image_ids": imageIDs,
+			"image_ids": post.Images,
 		},
 	})
 }

@@ -9,6 +9,8 @@ import (
 	"os/signal"
 	"syscall"
 	"traineesheep/feedservice/internal/app"
+	ISC "traineesheep/feedservice/internal/client/image_service"
+	NSC "traineesheep/feedservice/internal/client/notify"
 	"traineesheep/feedservice/internal/controller"
 	"traineesheep/feedservice/internal/database"
 	"traineesheep/feedservice/internal/repository"
@@ -37,12 +39,14 @@ func main() {
 
 	app := app.New() // создаём и конфигурируем fiber-приложение
 
-	// Настройка сервисов и DAO
+	// Настройка сервисов, клиентов и DAO
+	notifyClient := NSC.NewNotifyClient(utils.GetEnv("NOTIFICATION_SERVICE_URL", ""))
 	userDAO := repository.NewUserDAO(db)
-	userService := service.NewUserService(userDAO)
+	userService := service.NewUserService(userDAO, notifyClient)
 
+	imageClient := ISC.NewImageClient(utils.GetEnv("IMAGE_SERVICE_URL", ""))
 	feedDAO := repository.NewFeedDAO(db)
-	feedService := service.NewFeedService(feedDAO)
+	feedService := service.NewFeedService(feedDAO, imageClient)
 
 	tokenDAO := repository.NewTokenDAO(db)
 	tokenService := service.NewTokenService(tokenDAO)
