@@ -7,7 +7,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-// GetUser обрабатывает GET-запрос данных пользователья.
+// GetUser обрабатывает GET-запрос данных текущего залогиненного пользователя.
 func (ctrl *Controller) GetUser(c *fiber.Ctx) error {
 	userID, ok := c.Locals("user").(int)
 
