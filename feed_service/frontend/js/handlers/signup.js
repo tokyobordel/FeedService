@@ -9,7 +9,6 @@
  * При успешной регистрации:
  * - Закрывает модальное окно регистрации (элемент с id `signupModal`).
  * - Открывает модальное окно подтверждения (элемент с id `confirmModal`).
- * - Сохраняет сессию через {@link module:main.saveSession}.
  * - Обновляет интерфейс вызовом {@link module:main.showLoggedInUI}
  *   и {@link module:main.toggleConfirmedUI}.
  *
@@ -18,7 +17,6 @@
  * @function initSignupHandlers
  * @requires module:main.closeModal
  * @requires module:main.openModal
- * @requires module:main.saveSession
  * @requires module:main.showLoggedInUI
  * @requires module:main.toggleConfirmedUI
  * @requires HTML-элементы с id: `signupForm`, `signupError`, `signupUsername`,
@@ -30,7 +28,7 @@
  * // Вызов после загрузки DOM
  * document.addEventListener('DOMContentLoaded', initSignupHandlers);
  */
-import { closeModal, openModal, saveSession, showLoggedInUI, toggleConfirmedUI } from '../index.js';
+import { closeModal, openModal, showLoggedInUI, toggleConfirmedUI } from '../index.js';
 
 export function initSignupHandlers() {
     const signupForm = document.getElementById('signupForm');
@@ -90,7 +88,6 @@ export function initSignupHandlers() {
                 throw new Error('Некорректный ответ сервера');
             }
 
-            saveSession(user);
             showLoggedInUI(user);
             toggleConfirmedUI();
         } catch (err) {

@@ -1,5 +1,3 @@
-import { getSavedUser } from '../index.js';
-
 /**
  * Инициализирует обработчик кнопки повторной отправки письма подтверждения (`#repeat-confirm`).
  *
@@ -7,7 +5,6 @@ import { getSavedUser } from '../index.js';
  * В случае ошибки выводит сообщение в элемент `#confirm-error`.
  *
  * @function initRepeatConfirmHandlers
- * @requires module:main.getSavedUser
  * @requires HTML-элементы с id: `repeat-confirm`, `confirm-error`.
  * @returns {void}
  *
@@ -24,23 +21,19 @@ export function initRepeatConfirmHandlers() {
         confirmError.textContent = '';
         confirmBtn.disabled = true;
 
-        const user = getSavedUser();
+        try {
+            const response = await fetch('/api/send_confirm', {
+                method: 'GET',
+                headers: { 'Content-Type': 'application/json' },
+            });
 
-        if (user) {
-            try {
-                const response = await fetch('/api/send_confirm?user_id=' + user.id, {
-                    method: 'GET',
-                    headers: { 'Content-Type': 'application/json' },
-                });
+            const data = await response.json();
 
-                const data = await response.json();
-
-                if (!response.ok || !data.success) {
-                    throw new Error(data.err_message || 'Ошибка. Попробуйте позже');
-                }
-            } catch (err) {
-                confirmError.textContent = err.message;
+            if (!response.ok || !data.success) {
+                throw new Error(data.err_message || 'Ошибка. Попробуйте позже');
             }
+        } catch (err) {
+            confirmError.textContent = err.message;
         }
         confirmBtn.disabled = false;
     });

@@ -50,9 +50,6 @@ func Create(app *fiber.App, us *service.UserService,
 	// Загрузка всей отсортированной ленты
 	app.Get("/feed", ctrl.Feed)
 
-	// Загрузка отсортированной ленты пользователя
-	app.Get("/refresh", middleware.RefreshTokenRequired, ctrl.Refresh)
-
 	// Вход
 	app.Post("/signin", ctrl.Signin)
 
@@ -63,13 +60,16 @@ func Create(app *fiber.App, us *service.UserService,
 	app.Post("/logout", ctrl.Logout)
 
 	// Загрузка изображений
-	app.Post("/upload", middleware.AuthRequired, ctrl.Upload)
+	app.Post("/upload", middleware.TokenAuth, ctrl.Upload)
 
 	// Подтверждение регистрации
 	app.Get("/confirm", middleware.ConfirmRequired, ctrl.Confirm)
 
 	// Отправка уведомления о подтверждении
-	app.Get("/send_confirm", middleware.AuthRequired, ctrl.SendConfirm)
+	app.Get("/send_confirm", middleware.TokenAuth, ctrl.SendConfirm)
+
+	// healthcheck
+	app.Get("/get_user", middleware.TokenAuth, ctrl.GetUser)
 
 	// healthcheck
 	app.Get("/health", ctrl.Health)

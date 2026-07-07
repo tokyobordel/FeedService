@@ -4,7 +4,6 @@
  * Выполняет клиентскую валидацию: поля логина и пароля обязательны.
  *
  * При успешном входе:
- * - сохраняет сессию пользователя через {@link module:main.saveSession},
  * - обновляет интерфейс вызовом {@link module:main.showLoggedInUI},
  * - закрывает модальное окно через {@link module:main.closeModal}
  *   (предполагается, что форма находится в модальном окне `#signinModal`).
@@ -14,7 +13,6 @@
  *
  * @function initSigninHandlers
  * @requires module:main.closeModal
- * @requires module:main.saveSession
  * @requires module:main.showLoggedInUI
  * @requires module:main.toggleConfirmedUI
  * @requires HTML-элементы с id: `signinForm`, `signinError`, `signinUsername`,
@@ -25,7 +23,7 @@
  * // Вызов после загрузки DOM
  * document.addEventListener('DOMContentLoaded', initSigninHandlers);
  */
-import { closeModal, saveSession, showLoggedInUI, toggleConfirmedUI } from '../index.js';
+import { closeModal, showLoggedInUI, toggleConfirmedUI } from '../index.js';
 
 export function initSigninHandlers() {
     const signinForm = document.getElementById('signinForm');
@@ -65,7 +63,6 @@ export function initSigninHandlers() {
                 throw new Error('Некорректный ответ сервера');
             }
 
-            saveSession(user);
             showLoggedInUI(user);
             closeModal(signinModal);
             toggleConfirmedUI();

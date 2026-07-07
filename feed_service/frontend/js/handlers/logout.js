@@ -1,17 +1,3 @@
-/**
- * Удаляет данные пользователя из localStorage, очищая сессию.
- *
- * @function clearSession
- * @returns {void}
- *
- * @example
- * clearSession();
- * // После вызова localStorage не содержит ключ 'user'.
- */
-export function clearSession() {
-    localStorage.removeItem('user');
-}
-
 import { showGuestUI } from '../index.js';
 
 /**
@@ -20,7 +6,6 @@ import { showGuestUI } from '../index.js';
  * При клике:
  * - Отправляет POST-запрос на `/api/logout` для инвалидации сессии на сервере
  *   (ошибка запроса игнорируется).
- * - Очищает локальную сессию вызовом {@link module:handlers/logout.clearSession}.
  * - Обновляет интерфейс вызовом {@link module:main.showGuestUI}.
  *
  * @function initLogoutHandler
@@ -44,7 +29,6 @@ export function initLogoutHandler() {
         } catch (e) {
             // игнорируем ошибку запроса
         }
-        clearSession();
         showGuestUI();
     });
 }

@@ -1,6 +1,6 @@
-import { getSavedUser } from '../index.js';
-import { loadUserFeedById } from '../feed/feed.js';
+import {loadMainFeed, loadUserFeedById, reloadFeed} from '../feed/feed.js';
 import noImage from '../../img/noimage.png';
+import {closeModal, showGuestUI} from "../index";
 /**
  * Переключает видимость изображений в слайдере поста на предыдущее.
  *
@@ -153,9 +153,15 @@ export function createPostsHandlers() {
 
     // Обработчики клика по автору
     document.querySelectorAll('.post-author').forEach(el => {
-        el.addEventListener('click', (e) => {
-            const user = getSavedUser();
-            const userId = e.currentTarget.dataset.userId;
+        el.addEventListener('click', async (e) => {
+            const response = await fetch("/api/get_user");
+            const data = await response.json();
+            if (!response.ok || !data.success) {
+                showGuestUI();
+                return;
+            }
+            const user = data.data.user;
+            const userId = e.target.dataset.userId;
             if (userId && user && user.is_confirmed) {
                 loadUserFeedById(parseInt(userId));
             }
