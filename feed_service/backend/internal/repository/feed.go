@@ -7,7 +7,6 @@ package repository
 
 import (
 	"database/sql"
-	"fmt"
 	models "traineesheep/feedservice/internal/model"
 
 	"github.com/lib/pq"
@@ -111,7 +110,8 @@ func (fd *FeedDAO) LoadUserFeed(userID int) ([]models.Post, error) {
 // соответствующие связи в image_post. Возвращает созданный пост и ошибку.
 func (fd *FeedDAO) CreatePost(userID int, title string, description string, imageIDs []int) (models.Post, error) {
 	if len(imageIDs) == 0 {
-		return models.Post{}, fmt.Errorf("Изображения не выбраны")
+		// todo заглушка
+		//return models.Post{}, fmt.Errorf("Изображения не выбраны")
 	}
 
 	var post models.Post

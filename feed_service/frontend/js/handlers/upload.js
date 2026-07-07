@@ -32,6 +32,8 @@
  */
 import {openModal, closeModal, showGuestUI} from '../index.js';
 import {loadMainFeed, reloadFeed} from '../feed/feed.js';
+import FeedAPI from '../client/feed_service.js';
+import { ApiError } from '../client/feed_service.js';
 
 export function initUploadHandlers() {
     const uploadBtn = document.getElementById('btnUpload');
@@ -110,27 +112,18 @@ export function initUploadHandlers() {
         }
 
         try {
-            const response = await fetch('/api/upload', {
-                method: 'POST',
-                body: formData,
-            });
-
-            const data = await response.json();
-
-            if(response.status === 401) {
-                closeModal(document.getElementById("uploadModal"))
-                loadMainFeed();
-                showGuestUI();
-            }
-
-            if (!response.ok || !data.success) {
-                throw new Error(data.err_message || 'Ошибка загрузки');
-            }
-
+            await FeedAPI.upload(formData);
             closeModal(uploadModal);
             if (reloadFeed) reloadFeed();
         } catch (err) {
-            uploadError.textContent = err.message;
+            if (err instanceof ApiError && err.status === 401) {
+                closeModal(document.getElementById("uploadModal"));
+                loadMainFeed();
+                showGuestUI();
+            } else {
+                uploadError.textContent = err.message || 'Неизвестная ошибка загрузки';
+                e.submitter.disabled = false;
+            }
         }
         e.submitter.disabled = false;
     });

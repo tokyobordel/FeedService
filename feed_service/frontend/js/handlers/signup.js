@@ -29,6 +29,7 @@
  * document.addEventListener('DOMContentLoaded', initSignupHandlers);
  */
 import { closeModal, openModal, showLoggedInUI, toggleConfirmedUI } from '../index.js';
+import FeedAPI from '../client/feed_service'
 
 export function initSignupHandlers() {
     const signupForm = document.getElementById('signupForm');
@@ -65,29 +66,11 @@ export function initSignupHandlers() {
             return;
         }
 
-        const payload = { username, password, email };
-
         try {
-            const response = await fetch('/api/signup', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-
-            const data = await response.json();
-
-            if (!response.ok || !data.success) {
-                throw new Error(data.err_message || 'Ошибка регистрации');
-            }
-
+            const { user } = await FeedAPI.signup(username, email, password);
+            // При успехе переключаем модалки и обновляем UI
             closeModal(signupModal);
             openModal(confirmModal);
-
-            const { user } = data.data;
-            if (!user) {
-                throw new Error('Некорректный ответ сервера');
-            }
-
             showLoggedInUI(user);
             toggleConfirmedUI();
         } catch (err) {

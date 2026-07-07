@@ -1,34 +1,25 @@
 import { showGuestUI } from '../index.js';
+import FeedAPI from '../client/feed_service.js';
 
 /**
  * Инициализирует обработчик клика по кнопке выхода (`#btnLogout`).
  *
  * При клике:
- * - Отправляет POST-запрос на `/api/logout` для инвалидации сессии на сервере
+ * - Отправляет POST-запрос на `/api/logout` через клиент API
  *   (ошибка запроса игнорируется).
  * - Обновляет интерфейс вызовом {@link module:main.showGuestUI}.
  *
  * @function initLogoutHandler
  * @requires module:main.showGuestUI
+ * @requires FeedAPI
  * @requires HTML-элемент с id: `btnLogout`.
  * @returns {void}
- *
- * @example
- * // Вызов после загрузки DOM
- * document.addEventListener('DOMContentLoaded', initLogoutHandler);
  */
 export function initLogoutHandler() {
     const btnLogout = document.getElementById('btnLogout');
 
     btnLogout.addEventListener('click', async () => {
-        try {
-            await fetch('/api/logout', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' }
-            });
-        } catch (e) {
-            // игнорируем ошибку запроса
-        }
+        await FeedAPI.logout();   // инвалидация сессии, ошибка игнорируется
         showGuestUI();
     });
 }

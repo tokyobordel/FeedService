@@ -37,6 +37,7 @@ import { initSigninHandlers } from './handlers/signin.js';
 import { initSignupHandlers } from './handlers/signup.js';
 import { initUploadHandlers } from './handlers/upload.js';
 import { initRepeatConfirmHandlers } from './handlers/confirm.js';
+import FeedAPI from "./client/feed_service.js";
 
 document.addEventListener('DOMContentLoaded', () => {
     // Модальные окна
@@ -95,13 +96,12 @@ document.addEventListener('DOMContentLoaded', () => {
      * @function checkAuthOnLoad
      */
     async function checkAuthOnLoad() {
-        const response = await fetch("/api/get_user");
-        const data = await response.json();
-        if (!response.ok || !data.success) {
+        const user = await FeedAPI.getUserData();
+        if (!user) {
             showGuestUI();
             return;
         }
-        showLoggedInUI(data.data.user);
+        showLoggedInUI(user);
         toggleConfirmedUI();
     }
 
@@ -206,22 +206,23 @@ export function showGuestUI() {
  * Показывает элементы UI, доступные только при неактивной учетной записи (is_confirmed = false).
  * Подсвечивает никнейм красным цветом и управляет видимостью кнопки добавления постов.
  *
+ * @async
  * @function toggleConfirmedUI
- * @returns {void}
+ * @returns {Promise<void>}
  */
 export async function toggleConfirmedUI() {
-    const response = await fetch("/api/get_user");
-    const data = await response.json();
-    if (!response.ok || !data.success) {
+    const user = await FeedAPI.getUserData();
+
+    if (!user) {
         showGuestUI();
         loadMainFeed();
         return;
     }
-    const user = data.data.user;
+
     const userNameDisplay = document.getElementById('userNameDisplay');
     const uploadBtn = document.getElementById('btnUpload');
 
-    if (user && userNameDisplay && uploadBtn) {
+    if (userNameDisplay && uploadBtn) {
         user.is_confirmed
             ? userNameDisplay.classList.remove("not-confirmed")
             : userNameDisplay.classList.add("not-confirmed");

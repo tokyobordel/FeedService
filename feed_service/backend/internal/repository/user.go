@@ -56,6 +56,20 @@ func (ud *UserDAO) ExistsByUsername(username string) (bool, error) {
 	return exists, nil
 }
 
+// ExistsByEmail проверяет, существует ли пользователь с указанным email.
+// Возвращает true, если пользователь найден, и ошибку запроса.
+func (ud *UserDAO) ExistsByEmail(email string) (bool, error) {
+	var exists bool
+	err := ud.db.QueryRow(
+		"SELECT EXISTS(SELECT 1 FROM users WHERE email=$1)",
+		email,
+	).Scan(&exists)
+	if err != nil {
+		return false, err
+	}
+	return exists, nil
+}
+
 // GetByUsername возвращает модель пользователя по его имени.
 // Если пользователь не найден, возвращается пустая структура и ошибка sql.ErrNoRows.
 func (ud *UserDAO) GetByUsername(username string) (models.User, error) {

@@ -1,6 +1,7 @@
 import {loadMainFeed, loadUserFeedById, reloadFeed} from '../feed/feed.js';
 import noImage from '../../img/noimage.png';
 import {closeModal, showGuestUI} from "../index";
+import FeedAPI from "../client/feed_service.js";
 /**
  * Переключает видимость изображений в слайдере поста на предыдущее.
  *
@@ -77,8 +78,8 @@ export function createPost(post) {
     let sliderImages = "<div class='img-slider'>";
 
     for (const imageId of post.images || []) {
-        sliderImages += `<a href="${process.env.IS_URL}/api/images/${imageId}" target="_blank">
-            <img id="image_${imageId}" src="${process.env.IS_URL}/api/images/icon/${imageId}" class="postImage">
+        sliderImages += `<a href="${process.env.IS_URL}/api/guest/image/${imageId}" target="_blank">
+            <img id="image_${imageId}" src="${process.env.IS_URL}/api/guest/image/${imageId}?type=icon" class="postImage">
         </a>`;
     }
     sliderImages += "</div>";
@@ -154,15 +155,13 @@ export function createPostsHandlers() {
     // Обработчики клика по автору
     document.querySelectorAll('.post-author').forEach(el => {
         el.addEventListener('click', async (e) => {
-            const response = await fetch("/api/get_user");
-            const data = await response.json();
-            if (!response.ok || !data.success) {
+            const user = await FeedAPI.getUserData();
+            if (!user) {
                 showGuestUI();
                 return;
             }
-            const user = data.data.user;
             const userId = e.target.dataset.userId;
-            if (userId && user && user.is_confirmed) {
+            if (userId && user.is_confirmed) {
                 loadUserFeedById(parseInt(userId));
             }
         });

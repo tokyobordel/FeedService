@@ -5,7 +5,6 @@ left to right direction
 actor Client
 
 package "ImageFeedService" {
-
     component "Controller" as Controller
 
     component "UserService" as UserService
@@ -26,7 +25,7 @@ component "Notification Service" as NotificationService
 
 Client --> Controller
 
-Controller --> ImageService : POST /api/images
-Controller --> NotificationService : POST /notify
+FeedService --> ImageService : POST /api/images
+UserService --> NotificationService : POST /notify
 
 @enduml

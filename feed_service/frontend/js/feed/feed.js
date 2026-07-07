@@ -1,5 +1,6 @@
 import { createPost, createPostsHandlers } from './post.js';
-import {openModal, showGuestUI} from '../index.js'; // для открытия confirmModal
+import { openModal, showGuestUI } from '../index.js';
+import FeedAPI from '../client/feed_service.js';
 
 // ---------- Состояние модуля ----------
 let currentUserFeed = null;        // null = общая лента, иначе ID пользователя
@@ -10,18 +11,17 @@ let userNameDisplay = null;
 let confirmModal = null;
 
 // ---------- Внутренние утилиты ----------
-async function fetchPosts(url) {
+
+/**
+ * Принимает промис, который резолвится массивом постов.
+ * Управляет лоадером, очисткой контейнера и отрисовкой/ошибкой.
+ */
+async function loadAndRender(postsPromise) {
     feedLoader.style.display = 'block';
     feedContainer.innerHTML = '';
     try {
-        const response = await fetch(url);
-        if (!response.ok) throw new Error('Ошибка загрузки');
-        const data = await response.json();
-        if (data.success) {
-            renderPosts(data.data);
-        } else {
-            feedContainer.innerHTML = `<p class="error-message">${data.err_message || 'Не удалось загрузить посты'}</p>`;
-        }
+        const posts = await postsPromise;
+        renderPosts(posts);
     } catch (err) {
         feedContainer.innerHTML = `<p class="error-message">${err.message}</p>`;
     } finally {
@@ -40,32 +40,20 @@ function renderPosts(posts) {
 
 // ---------- Публичные функции ленты ----------
 
-/**
- * Загружает общую ленту (все посты).
- * Сбрасывает состояние currentUserFeed в null и показывает кнопку «Все посты»/логин-нейм.
- */
 export function loadMainFeed() {
     currentUserFeed = null;
-    allPostsBtn.style.display = 'none';    // обычно прячем кнопку "Все посты" на общей ленте
-    if (userNameDisplay) userNameDisplay.style.display = 'inline'; // показываем имя пользователя
-    fetchPosts('/api/feed');
+    allPostsBtn.style.display = 'none';
+    if (userNameDisplay) userNameDisplay.style.display = 'inline';
+    loadAndRender(FeedAPI.getMainFeed());
 }
 
-/**
- * Загружает ленту конкретного пользователя.
- * @param {number} userId - ID пользователя
- */
 function loadUserFeed(userId) {
     currentUserFeed = userId;
-    allPostsBtn.style.display = 'inline';  // показываем кнопку возврата к общей ленте
+    allPostsBtn.style.display = 'inline';
     if (userNameDisplay) userNameDisplay.style.display = 'none';
-    fetchPosts(`/api/feed?user_id=${userId}`);
+    loadAndRender(FeedAPI.getUserFeed(userId));
 }
 
-/**
- * Перезагружает текущую ленту (общую или пользовательскую).
- * Экспортируется для вызова из других модулей (например, после загрузки поста).
- */
 export function reloadFeed() {
     if (currentUserFeed === null) {
         loadMainFeed();
@@ -74,20 +62,12 @@ export function reloadFeed() {
     }
 }
 
-/**
- * Позволяет внешним модулям явно запросить загрузку ленты пользователя.
- * @param {number} userId
- */
 export function loadUserFeedById(userId) {
     loadUserFeed(userId);
 }
 
-// ---------- Инициализация (привязка к DOM) ----------
+// ---------- Инициализация ----------
 
-/**
- * Инициализирует ленту: кеширует DOM-элементы, вешает обработчики.
- * Вызывается один раз после загрузки DOM.
- */
 export function initFeed() {
     feedContainer = document.getElementById('feedContainer');
     feedLoader = document.getElementById('feedLoader');
@@ -96,10 +76,8 @@ export function initFeed() {
     confirmModal = document.getElementById('confirmModal');
     const logo = document.querySelector('.logo');
 
-    // Кнопка «Все посты»
     allPostsBtn.addEventListener('click', loadMainFeed);
 
-    // Клик по логотипу
     if (logo) {
         logo.addEventListener('click', (e) => {
             e.preventDefault();
@@ -107,17 +85,14 @@ export function initFeed() {
         });
     }
 
-    // Клик по имени пользователя
     if (userNameDisplay) {
         userNameDisplay.addEventListener('click', async () => {
-            const response = await fetch("/api/get_user");
-            const data = await response.json();
-            if (!response.ok || !data.success) {
+            const user = await FeedAPI.getUserData();
+            if (!user) {
                 showGuestUI();
                 return;
             }
-            const user = data.data.user;
-            if (user && user.id && user.is_confirmed) {
+            if (user.id && user.is_confirmed) {
                 loadUserFeed(user.id);
             } else if (confirmModal) {
                 openModal(confirmModal);
@@ -125,6 +100,5 @@ export function initFeed() {
         });
     }
 
-    // Первоначальная загрузка
     loadMainFeed();
 }
