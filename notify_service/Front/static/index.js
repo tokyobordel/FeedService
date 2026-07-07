@@ -1,8 +1,6 @@
-/**
- * @fileoverview Основной файл фронтенда сервиса уведомлений
- * @author Разработчик
- * @version 1.0.0
- */
+import './styles/main.css';
+import './styles/layout.css';
+import './styles/components.css';
 
 /**
  * Флаг состояния сохранения настроек

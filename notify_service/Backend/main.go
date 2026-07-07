@@ -3,19 +3,17 @@ package main
 import (
 	"context"
 	"log"
-	"net/http"
 	"os"
 	"os/signal"
 	"strconv"
 	"sync"
 	"syscall"
-	"time"
-	"traineesheep/notifyservice/internal/email"
 	"traineesheep/notifyservice/internal/handlers"
 	"traineesheep/notifyservice/internal/tgbot"
+	"traineesheep/notifyservice/pkg/email"
 
 	"github.com/go-telegram/bot"
-	"github.com/gorilla/mux"
+	"github.com/gofiber/fiber/v3"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
 )
@@ -76,45 +74,67 @@ func main() {
 	wg := new(sync.WaitGroup{})
 	d := handlers.NewDTO(tgBot, pool, smtpDto, grtChan, wg, os.Getenv("JWT_SECRET"))
 
-	r := mux.NewRouter()
-	api := r.PathPrefix("/api").Subrouter()
-	api.HandleFunc("/notify", d.HandleNotify).Methods("OPTIONS", "POST")
-	api.HandleFunc("/notify_types", d.HandleSaveSettingsCheckmarks).Methods("OPTIONS", "POST")
-	api.HandleFunc("/get_notify_settings", d.HandleGetNotifySettings).Methods("OPTIONS", "GET")
-	api.HandleFunc("/moderator_login", d.HandleModeratorLogin).Methods("OPTIONS", "POST")
+	app := fiber.New(fiber.Config{
+		AppName: "Notify Service v1.0",
+	})
 
-	srv := &http.Server{
-		Addr:    "0.0.0.0:8080",
-		Handler: r,
-	}
+	api := app.Group("/api")
+	api.Post("/notify", d.HandleNotify)
+	api.Post("/notify_types", d.HandleSaveSettingsCheckmarks)
+	api.Get("/get_notify_settings", d.HandleGetNotifySettings)
+	api.Post("/moderator_login", d.HandleModeratorLogin)
+
+	serverErrors := make(chan error, 1)
+
+	go func() {
+		log.Println("Server has been started on port 8080!")
+		serverErrors <- app.Listen(":8080")
+	}()
+
+	// r := mux.NewRouter()
+	// api := r.PathPrefix("/api").Subrouter()
+	// api.HandleFunc("/notify", d.HandleNotify).Methods("OPTIONS", "POST")
+	// api.HandleFunc("/notify_types", d.HandleSaveSettingsCheckmarks).Methods("OPTIONS", "POST")
+	// api.HandleFunc("/get_notify_settings", d.HandleGetNotifySettings).Methods("OPTIONS", "GET")
+	// api.HandleFunc("/moderator_login", d.HandleModeratorLogin).Methods("OPTIONS", "POST")
+
+	// srv := &http.Server{
+	// 	Addr:    "0.0.0.0:8080",
+	// 	Handler: r,
+	// }
 
 	go func() {
 		log.Println("Telegram bot has been started")
 		tgBot.Start(context.Background())
 	}()
 
-	go func() {
-		log.Println("Server has been started!")
-		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			panic(err)
-		}
-	}()
+	// Запускаем mux server
+	// go func() {
+	// 	log.Println("Server has been started!")
+	// 	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+	// 		panic(err)
+	// 	}
+	// }()
 
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt, syscall.SIGINT)
 	<-stop
 
-	log.Println("Shutting down server")
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	if err := srv.Shutdown(ctx); err != nil {
-		log.Println("HTTP server shutdown error:", err)
-	}
+	select {
+	case err := <-serverErrors:
+		log.Fatalf("Server error: %v", err)
+	case <-stop:
+		log.Println("Shutting down server...")
 
-	log.Println("Waiting for active requests to finish...")
-	wg.Wait()
+		if err := app.Shutdown(); err != nil {
+			log.Println("HTTP server shutdown error:", err)
+		}
 
-	if _, err := tgBot.Close(context.Background()); err != nil {
-		log.Println("Ошибка при отключении ТГ бота:", err)
+		log.Println("Waiting for active requests to finish...")
+		wg.Wait()
+
+		if _, err := tgBot.Close(context.Background()); err != nil {
+			log.Println("Ошибка при отключении ТГ бота:", err)
+		}
 	}
 }

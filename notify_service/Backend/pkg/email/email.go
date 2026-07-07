@@ -36,7 +36,7 @@ func NewSmtpDTO(e string, p string, h string, port string) *SmtpDTO {
 // message - текст письма
 // notify_type - тип уведомления
 // На выходе получаем лог об успешности отправки
-func (s SmtpDTO) SendMessage(receiverEmails []string, message []byte, notify_type string) {
+func (s SmtpDTO) SendMessage(receiverEmails []string, message string, notify_type string) {
 	tlsConfig := &tls.Config{
 		ServerName: s.Host,
 	}
@@ -97,7 +97,7 @@ func (s SmtpDTO) SendMessage(receiverEmails []string, message []byte, notify_typ
 	}
 
 	var temp_message = "Subject: " + topic + "\r\n" + "\r\n"
-	temp_message += string(message)
+	temp_message += message
 	temp_message = strings.ReplaceAll(temp_message, "<b>", "")
 	temp_message = strings.ReplaceAll(temp_message, "</b>", "")
 	byte_temp_message := []byte(temp_message)

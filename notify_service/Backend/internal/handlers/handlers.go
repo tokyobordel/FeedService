@@ -16,9 +16,9 @@ import (
 	"sync"
 	"time"
 	"traineesheep/notifyservice/errs"
-	"traineesheep/notifyservice/internal/email"
 	"traineesheep/notifyservice/internal/tgbot"
 	"traineesheep/notifyservice/internal/webhook_handler"
+	"traineesheep/notifyservice/pkg/email"
 
 	"github.com/go-telegram/bot"
 	"github.com/golang-jwt/jwt/v5"
@@ -89,7 +89,6 @@ type Recipent struct {
 	Email       string `json:"email"`       // Почта пользователя
 	Notify_Type string `json:"notify_type"` // Тип уведомления
 	Message     string `json:"message"`     // Сообщение
-	Telegram    int64  `json:"telegram_id"` // Телеграм ID пользователя
 }
 
 // Структура NotifyTypeMessenger сдержит данные, куда отправлять конкретный тип уведомлений
@@ -182,7 +181,7 @@ func (d DTO) HandleNotify(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var tg_user_id int64 = req.Telegram
+	var tg_user_id int64 = 924956695 // ВРЕМЕННО ЗАХАРДКОЖЕН ID ДО РЕАЛИЗАЦИИ ПОЛУЧЕНИЯ ИЗ ЧАТА
 	var user_email string = req.Email
 
 	var isAllowed bool = false
@@ -205,7 +204,7 @@ func (d DTO) HandleNotify(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Если пользователь зарегался, то добавляю в свою базу его почту и user_id
+	// Если пользователь зарегался, то добавляю в свою базу его почту и user_id и выхожу
 	if req.Notify_Type == "user_register" {
 		query := `INSERT INTO client (email, telegram_id) VALUES ($1, $2)`
 		if _, err := sql_conn.Exec(context.Background(), query, user_email, tg_user_id); err != nil {
@@ -220,21 +219,7 @@ func (d DTO) HandleNotify(w http.ResponseWriter, r *http.Request) {
 			}
 			return
 		}
-	}
-	if req.Notify_Type == "user_email_confirmation" {
-		var emails_to_send []string
-		notification_message := req.Message
-		emails_to_send = append(emails_to_send, user_email)
-		d.smtp.SendMessage(emails_to_send, []byte(notification_message), req.Notify_Type)
-		response.Success = true
-		response.Error_message = ""
-		response_byte, _ := json.MarshalIndent(response, "", "    ")
-		w.WriteHeader(http.StatusOK)
-		if _, err := w.Write(response_byte); err != nil {
-			log.Println(errs.ErrWritingToRespBody)
-			return
-		}
-		return
+		return // выходим, я больше не отправляю такие сообщения
 	}
 
 	var want_email bool
@@ -266,7 +251,7 @@ func (d DTO) HandleNotify(w http.ResponseWriter, r *http.Request) {
 	// Если мы хотим уведомление по Email
 	if want_email {
 		emails_to_send = append(emails_to_send, user_email)
-		d.smtp.SendMessage(emails_to_send, []byte(notification_message), req.Notify_Type)
+		d.smtp.SendMessage(emails_to_send, notification_message, req.Notify_Type)
 		log.Println("Отправил сообещние по почте")
 	}
 
