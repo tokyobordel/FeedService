@@ -3,7 +3,6 @@ package controller
 import (
 	"fmt"
 	"log"
-	"strconv"
 	"traineesheep/feedservice/internal/middleware"
 	models "traineesheep/feedservice/internal/model"
 	"traineesheep/feedservice/internal/utils"
@@ -13,28 +12,18 @@ import (
 )
 
 func (ctrl *Controller) SendConfirm(c *fiber.Ctx) error {
-	userID := c.Query("user_id")
+	userID, ok := c.Locals("user").(int)
 
-	if userID == "" {
-		log.Println("Передан некорректный user_id")
+	if !ok {
+		log.Println("Отсутствует ID внутри контекста")
 		return c.Status(fiber.StatusBadRequest).JSON(utils.ApiResponse{
-			Data:       "Некорректные данные",
-			Success:    true,
-			ErrMessage: "",
+			Data:       nil,
+			Success:    false,
+			ErrMessage: "Некорректные данные",
 		})
 	}
 
-	userIDInt, userIDError := strconv.Atoi(userID)
-	if userIDError != nil {
-		log.Println("Передан некорректный user_id")
-		return c.Status(fiber.StatusBadRequest).JSON(utils.ApiResponse{
-			Data:       "Некорректные данные",
-			Success:    true,
-			ErrMessage: "",
-		})
-	}
-
-	user, userError := ctrl.UserService.GetByID(userIDInt)
+	user, userError := ctrl.UserService.GetByID(userID)
 	if userError != nil {
 		log.Println("Передан некорректный user_id")
 		return c.Status(fiber.StatusBadRequest).JSON(utils.ApiResponse{

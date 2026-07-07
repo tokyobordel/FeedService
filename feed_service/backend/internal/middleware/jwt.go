@@ -27,30 +27,6 @@ import (
 var jwtSecret = []byte(utils.GetEnv("FEED_SERVICE_JWT_SECRET",
 	"Vj1WlmufcUengSqzIINyliPacXQXbSj0YqfTSYI3iWZ"))
 
-// AuthRequired — middleware, требующий валидный access_token в куке.
-// При отсутствии или невалидном токене возвращает 401 с описанием ошибки.
-var AuthRequired = jwtware.New(jwtware.Config{
-	SigningKey:  jwtware.SigningKey{Key: jwtSecret},
-	TokenLookup: "cookie:access_token",
-	ErrorHandler: func(c *fiber.Ctx, err error) error {
-		return c.Status(fiber.StatusUnauthorized).JSON(utils.ApiResponse{
-			Success: false, ErrMessage: err.Error(),
-		})
-	},
-})
-
-// RefreshTokenRequired — middleware, требующий валидный refresh_token в куке.
-// Используется для эндпоинта обновления токенов. При ошибке возвращает 401.
-var RefreshTokenRequired = jwtware.New(jwtware.Config{
-	SigningKey:  jwtware.SigningKey{Key: jwtSecret},
-	TokenLookup: "cookie:refresh_token",
-	ErrorHandler: func(c *fiber.Ctx, err error) error {
-		return c.Status(fiber.StatusUnauthorized).JSON(utils.ApiResponse{
-			Success: false, ErrMessage: err.Error(),
-		})
-	},
-})
-
 // ConfirmRequired — middleware, требующий валидный token в параметрах запроса.
 // Используется для подтверждения регистрации.
 // При отсутствии или невалидном токене возвращает 500 с описанием ошибки.
@@ -94,7 +70,8 @@ func GenerateConfirmToken(userID int) (string, error) {
 func ParseToken(tokenStr string) (int, error) {
 	token, err := jwt.Parse(tokenStr, func(t *jwt.Token) (interface{}, error) {
 		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("неподдерживаемый метод подписи")
+			return nil,
+				fmt.Errorf("неподдерживаемый метод подписи")
 		}
 		return jwtSecret, nil
 	})
@@ -120,4 +97,50 @@ func GenerateRefreshToken(userID int) (string, error) {
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	return token.SignedString(jwtSecret)
+}
+
+// TokenAuth — middleware для проверки и автоматического обновления access-токена
+func TokenAuth(c *fiber.Ctx) error {
+	// Пытаемся прочитать и распарсить access_token
+	accessToken := c.Cookies("access_token")
+	if accessToken != "" {
+		claims, err := ParseToken(accessToken)
+		if err == nil {
+			// Токен валиден — продолжаем без лишних проверок
+			c.Locals("user", claims)
+			return c.Next()
+		}
+	}
+
+	// access_token отсутствует или невалиден — пробуем обновиться через refresh_token
+	refreshToken := c.Cookies("refresh_token")
+	if refreshToken == "" {
+		return unauthorized(c, "refresh_token отсутствует")
+	}
+
+	refreshClaims, err := ParseToken(refreshToken)
+	if err != nil {
+		return unauthorized(c, "refresh_token невалидный")
+	}
+
+	// Генерируем новый access_token
+	newAccessToken, err := GenerateAccessToken(refreshClaims)
+	if err != nil {
+		return unauthorized(c, "Ошибка генерации токена")
+	}
+
+	// Отправляем новый access_token клиенту
+	utils.SetTokens(c, newAccessToken, "")
+
+	// Сохраняем данные пользователя из refresh-токена. Прокидываем в эндпоинт
+	c.Locals("user", refreshClaims)
+	return c.Next()
+}
+
+// unauthorized — универсальный ответ 401
+func unauthorized(c *fiber.Ctx, message string) error {
+	return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+		"success": false,
+		"error":   message,
+	})
 }

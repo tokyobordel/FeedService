@@ -3,7 +3,7 @@
  *
  * Импортирует стили и все необходимые модули. При загрузке DOM инициализирует:
  * - модальные окна входа и регистрации,
- * - экспортируемые функции управления UI (`openModal`, `closeModal`, `resetForm`, `showLoggedInUI`, `showGuestUI`, `getSavedUser`, `toggleConfirmedUI`),
+ * - экспортируемые функции управления UI (`openModal`, `closeModal`, `resetForm`, `showLoggedInUI`, `showGuestUI`, `toggleConfirmedUI`),
  * - обработчики форм (вход, регистрация, выход, загрузка постов),
  * - проверку текущей сессии и обновление интерфейса,
  * - загрузку основной ленты.
@@ -12,7 +12,6 @@
  * - {@link openModal} — открыть модальное окно.
  * - {@link closeModal} — закрыть модальное окно со сбросом форм и очисткой ошибок.
  * - {@link resetForm} — сбросить форму и очистить элемент ошибки.
- * - {@link getSavedUser} — получить сохранённого пользователя из `localStorage`.
  * - {@link showLoggedInUI} — переключить интерфейс на авторизованного пользователя.
  * - {@link showGuestUI} — переключить интерфейс на гостя.
  * - {@link toggleConfirmedUI} — обновить UI в зависимости от статуса подтверждения учётной записи.
@@ -24,7 +23,6 @@
  * @requires module:handlers/signin
  * @requires module:handlers/signup
  * @requires module:handlers/upload
- * @requires module:handlers/refresh
  * @requires module:handlers/confirm
  */
 
@@ -33,12 +31,11 @@ import '../css/feed.css';
 import '../css/form.css';
 import '../css/modal.css';
 import '../css/font-awesome.min.css';
-import { initFeed } from './feed/feed.js';
+import {initFeed, loadMainFeed} from './feed/feed.js';
 import { initLogoutHandler } from './handlers/logout.js';
 import { initSigninHandlers } from './handlers/signin.js';
 import { initSignupHandlers } from './handlers/signup.js';
 import { initUploadHandlers } from './handlers/upload.js';
-import { refreshAccessToken } from './handlers/refresh.js';
 import { initRepeatConfirmHandlers } from './handlers/confirm.js';
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -97,16 +94,15 @@ document.addEventListener('DOMContentLoaded', () => {
      * @inner
      * @function checkAuthOnLoad
      */
-    function checkAuthOnLoad() {
-        refreshAccessToken().then(() => {
-            const user = getSavedUser();
-            if (user) {
-                showLoggedInUI(user);
-                toggleConfirmedUI();
-            } else {
-                showGuestUI();
-            }
-        });
+    async function checkAuthOnLoad() {
+        const response = await fetch("/api/get_user");
+        const data = await response.json();
+        if (!response.ok || !data.success) {
+            showGuestUI();
+            return;
+        }
+        showLoggedInUI(data.data.user);
+        toggleConfirmedUI();
     }
 
     // Вызов при старте
@@ -165,17 +161,6 @@ export function closeModal(modal) {
 }
 
 /**
- * Извлекает сохранённого пользователя из `localStorage`.
- *
- * @function getSavedUser
- * @returns {Object|null} Объект пользователя или `null`, если данных нет.
- */
-export function getSavedUser() {
-    const userStr = localStorage.getItem('user');
-    return userStr ? JSON.parse(userStr) : null;
-}
-
-/**
  * Переключает интерфейс на отображение для авторизованного пользователя.
  * Скрывает гостевые кнопки, показывает блок пользователя с именем и
  * кнопку загрузки.
@@ -224,8 +209,15 @@ export function showGuestUI() {
  * @function toggleConfirmedUI
  * @returns {void}
  */
-export function toggleConfirmedUI() {
-    const user = getSavedUser();
+export async function toggleConfirmedUI() {
+    const response = await fetch("/api/get_user");
+    const data = await response.json();
+    if (!response.ok || !data.success) {
+        showGuestUI();
+        loadMainFeed();
+        return;
+    }
+    const user = data.data.user;
     const userNameDisplay = document.getElementById('userNameDisplay');
     const uploadBtn = document.getElementById('btnUpload');
 
@@ -237,15 +229,4 @@ export function toggleConfirmedUI() {
             ? uploadBtn.style.display = 'inline-flex'
             : uploadBtn.style.display = 'none';
     }
-}
-
-/**
- * Сохраняет данные пользователя в localStorage.
- *
- * @function saveSession
- * @param {Object} user - объект пользователя.
- * @returns {void}
- */
-export function saveSession(user) {
-    localStorage.setItem('user', JSON.stringify(user));
 }

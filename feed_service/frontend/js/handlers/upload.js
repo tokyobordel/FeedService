@@ -30,8 +30,8 @@
  * // Вызов после загрузки DOM
  * document.addEventListener('DOMContentLoaded', initUploadHandlers);
  */
-import { openModal, closeModal } from '../index.js';
-import { reloadFeed } from '../feed/feed.js';
+import {openModal, closeModal, showGuestUI} from '../index.js';
+import {loadMainFeed, reloadFeed} from '../feed/feed.js';
 
 export function initUploadHandlers() {
     const uploadBtn = document.getElementById('btnUpload');
@@ -87,6 +87,7 @@ export function initUploadHandlers() {
     uploadForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         uploadError.textContent = '';
+        e.submitter.disabled = true;
 
         const title = document.getElementById('postTitle').value.trim();
         const description = document.getElementById('postDescription').value.trim();
@@ -116,6 +117,12 @@ export function initUploadHandlers() {
 
             const data = await response.json();
 
+            if(response.status === 401) {
+                closeModal(document.getElementById("uploadModal"))
+                loadMainFeed();
+                showGuestUI();
+            }
+
             if (!response.ok || !data.success) {
                 throw new Error(data.err_message || 'Ошибка загрузки');
             }
@@ -125,5 +132,6 @@ export function initUploadHandlers() {
         } catch (err) {
             uploadError.textContent = err.message;
         }
+        e.submitter.disabled = false;
     });
 }

@@ -1,5 +1,5 @@
 import { createPost, createPostsHandlers } from './post.js';
-import { openModal } from '../index.js'; // для открытия confirmModal
+import {openModal, showGuestUI} from '../index.js'; // для открытия confirmModal
 
 // ---------- Состояние модуля ----------
 let currentUserFeed = null;        // null = общая лента, иначе ID пользователя
@@ -44,7 +44,7 @@ function renderPosts(posts) {
  * Загружает общую ленту (все посты).
  * Сбрасывает состояние currentUserFeed в null и показывает кнопку «Все посты»/логин-нейм.
  */
-function loadMainFeed() {
+export function loadMainFeed() {
     currentUserFeed = null;
     allPostsBtn.style.display = 'none';    // обычно прячем кнопку "Все посты" на общей ленте
     if (userNameDisplay) userNameDisplay.style.display = 'inline'; // показываем имя пользователя
@@ -109,8 +109,14 @@ export function initFeed() {
 
     // Клик по имени пользователя
     if (userNameDisplay) {
-        userNameDisplay.addEventListener('click', () => {
-            const user = JSON.parse(localStorage.getItem('user') || '{}');
+        userNameDisplay.addEventListener('click', async () => {
+            const response = await fetch("/api/get_user");
+            const data = await response.json();
+            if (!response.ok || !data.success) {
+                showGuestUI();
+                return;
+            }
+            const user = data.data.user;
             if (user && user.id && user.is_confirmed) {
                 loadUserFeed(user.id);
             } else if (confirmModal) {
