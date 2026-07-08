@@ -3,9 +3,7 @@ CREATE TABLE IF NOT EXISTS client (
     client_name VARCHAR(300),
     client_token VARCHAR(4096),
     client_login VARCHAR(300),
-    client_password VARCHAR(300),
-    telegram_id INTEGER,
-    email VARCHAR(500)
+    client_password VARCHAR(300)
 );
 
 CREATE TABLE IF NOT EXISTS notify_type_message (

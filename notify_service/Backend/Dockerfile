@@ -3,17 +3,17 @@ FROM golang:1.26.4-alpine AS builder
 
 WORKDIR /backend
 
+# Устанавливаем migrate и postgresql-client (для pg_isready)
+RUN apk add --no-cache curl postgresql-client && \
+    curl -L https://github.com/golang-migrate/migrate/releases/download/v4.17.0/migrate.linux-amd64.tar.gz | tar xvz && \
+    mv migrate /usr/local/bin/
+
 COPY go.mod go.sum ./
 RUN go mod download
 
 COPY . .
 
 RUN go build -o /app/backend ./main.go
-
-# Устанавливаем migrate и postgresql-client (для pg_isready)
-RUN apk add --no-cache curl postgresql-client && \
-    curl -L https://github.com/golang-migrate/migrate/releases/download/v4.17.0/migrate.linux-amd64.tar.gz | tar xvz && \
-    mv migrate /usr/local/bin/
 
 # ================== ФИНАЛЬНЫЙ ОБРАЗ ==================
 FROM alpine:latest

@@ -12,10 +12,14 @@ import (
 	"traineesheep/notifyservice/internal/tgbot"
 	"traineesheep/notifyservice/pkg/email"
 
+	_ "traineesheep/notifyservice/docs" // сгенерированная документация
+
 	"github.com/go-telegram/bot"
 	"github.com/gofiber/fiber/v3"
+	"github.com/gofiber/fiber/v3/middleware/adaptor"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
+	httpSwagger "github.com/swaggo/http-swagger"
 )
 
 // SmtpDTO представляет собой структуру данных для конфигурации SMTP сервера.
@@ -42,14 +46,14 @@ type SmtpDTO struct {
 func main() {
 	godotenv.Load("./config/data.env")
 
-	requiredEnvVars := []string{"DATABASE_CONNECT", "BOT_TOKEN", "CHANNEL_SIZE", "JWT_SECRET"}
+	requiredEnvVars := []string{"DATABASE_CONNECT", "BOT_TOKEN", "WORKER_COUNT", "JWT_SECRET"}
 	for _, envVar := range requiredEnvVars {
 		if os.Getenv(envVar) == "" {
 			log.Fatalf("Required environment variable %s is not set", envVar)
 		}
 	}
 
-	var channelSize, err = strconv.Atoi(os.Getenv("CHANNEL_SIZE"))
+	var channelSize, err = strconv.Atoi(os.Getenv("WORKER_COUNT"))
 	if err != nil {
 		log.Fatal("Error! Channel size can't be converted to int!")
 	}
@@ -72,7 +76,7 @@ func main() {
 
 	grtChan := make(chan int, channelSize)
 	wg := new(sync.WaitGroup{})
-	d := handlers.NewDTO(tgBot, pool, smtpDto, grtChan, wg, os.Getenv("JWT_SECRET"))
+	d := handlers.NewDTO(tgBot, pool, smtpDto, grtChan, wg, os.Getenv("JWT_SECRET"), os.Getenv("admin_login"), os.Getenv("admin_password"))
 
 	app := fiber.New(fiber.Config{
 		AppName: "Notify Service v1.0",
@@ -83,6 +87,9 @@ func main() {
 	api.Post("/notify_types", d.HandleSaveSettingsCheckmarks)
 	api.Get("/get_notify_settings", d.HandleGetNotifySettings)
 	api.Post("/moderator_login", d.HandleModeratorLogin)
+	app.Get("/swagger/*", adaptor.HTTPHandler(httpSwagger.Handler(
+		httpSwagger.URL("http://localhost:8080/swagger/doc.json"),
+	)))
 
 	serverErrors := make(chan error, 1)
 

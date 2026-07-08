@@ -27,6 +27,25 @@ let editingRowId = null;
 const predefinedTypes = ["user_register", "user_login", "admin_newImg", "user_imgVerdict"];
 
 /**
+ * Карты соответствия для id чекбоксов предопределённых типов
+ */
+const emailIdMap = {
+    'user_register': 'email_reg',
+    'user_login': 'email_login',
+    'user_imgVerdict': 'email_user_imgVerdict',
+    'admin_newImg': 'email_admin_newImg'
+};
+const tgIdMap = {
+    'user_register': 'tg_reg',
+    'user_login': 'tg_login',
+    'user_imgVerdict': 'tg_user_imgVerdict',
+    'admin_newImg': 'tg_admin_newImg'
+};
+
+// Хранилище для удаленных дефолтных параметров (чтобы они не появлялись после перезагрузки)
+let disabledPredefinedTypes = new Set(JSON.parse(localStorage.getItem('disabledPredefinedTypes') || '[]'));
+
+/**
  * Инициализация системы уведомлений
  * @function initNotifications
  * @returns {void}
@@ -134,6 +153,34 @@ const predefinedTypes = ["user_register", "user_login", "admin_newImg", "user_im
 })();
 
 /**
+ * Инициализация мультиселектов для уже существующих строк (при пустой БД)
+ */
+function initExistingMultiselects() {
+    const containers = document.querySelectorAll('.webhook-multiselect-container');
+    multiselectInstances = [];
+    containers.forEach(container => {
+        const notifyType = container.dataset.notifyType;
+        const instance = createMultiselect(container, notifyType);
+        multiselectInstances.push({ notifyType, instance });
+    });
+}
+
+/**
+ * Сбор URL из существующих мультиселектов (при пустой БД)
+ */
+function updateWebhookUrlsFromExistingRows() {
+    const containers = document.querySelectorAll('.webhook-multiselect-container');
+    const urls = new Set();
+    containers.forEach(container => {
+        const selects = container.querySelectorAll('.option-item input[type="checkbox"]');
+        selects.forEach(cb => {
+            if (cb.checked) urls.add(cb.value);
+        });
+    });
+    webhookUrls = Array.from(urls);
+}
+
+/**
  * Получение настроек уведомлений с сервера
  * @async
  * @function GetSettings
@@ -146,40 +193,53 @@ async function GetSettings() {
         const result = await response.json();
         console.log('Result:', result);
 
-        customRows = [];
+        const tbody = getTableBody();
+        if (!tbody) return;
 
-        if (!result.data || !Array.isArray(result.data)) {
-            console.log("No data or invalid data format");
+        // Если данных нет или массив пустой — ничего не перестраиваем
+        if (!result.data || !Array.isArray(result.data) || result.data.length === 0) {
+            console.log("No data or empty data, keeping hardcoded rows");
+            initExistingMultiselects();
+            updateWebhookUrlsFromExistingRows();
             renderWebhookTable();
             renderCustomRows();
             return;
         }
 
+        // Если данные есть — перестраиваем таблицу
         const data = result.data;
 
-        data.forEach((item) => {
-            if (predefinedTypes.includes(item.notify_type)) {
-                const notify_type = item.notify_type;
-                const want_email = item.want_email;
-                const want_telegram = item.want_telegram;
+        // Очищаем tbody и customRows
+        tbody.innerHTML = '';
+        customRows = [];
+        multiselectInstances = [];
 
-                switch (notify_type) {
-                    case "user_register":
-                        document.getElementById('email_reg').checked = want_email;
-                        document.getElementById('tg_reg').checked = want_telegram;
-                        break;
-                    case "user_login":
-                        document.getElementById('email_login').checked = want_email;
-                        document.getElementById('tg_login').checked = want_telegram;
-                        break;
-                    case "admin_newImg":
-                        document.getElementById('email_admin_newImg').checked = want_email;
-                        document.getElementById('tg_admin_newImg').checked = want_telegram;
-                        break;
-                    case "user_imgVerdict":
-                        document.getElementById('email_user_imgVerdict').checked = want_email;
-                        document.getElementById('tg_user_imgVerdict').checked = want_telegram;
-                        break;
+        // Сначала обрабатываем предопределённые типы
+        data.forEach(item => {
+            if (predefinedTypes.includes(item.notify_type)) {
+                if (disabledPredefinedTypes.has(item.notify_type)) {
+                    return;
+                }
+
+                // Если в БД нет описания, берем дефолтное и сохраняем в переменную для UI
+                if (!item.notify_description && defaultNotifyNames[item.notify_type]) {
+                    item.notify_description = defaultNotifyNames[item.notify_type];
+                }
+                
+                // Сохраняем описание, чтобы его можно было редактировать
+                if (item.notify_description) {
+                    predefinedDescriptions[item.notify_type] = item.notify_description;
+                }
+
+                const row = createPredefinedRow(item);
+                tbody.appendChild(row);
+
+                const container = row.querySelector('.webhook-multiselect-container');
+                if (container) {
+                    const nt = container.dataset.notifyType;
+                    webhookSelections[nt] = item.webhook_urls || [];
+                    const instance = createMultiselect(container, nt);
+                    multiselectInstances.push({ notifyType: nt, instance });
                 }
             } else {
                 customRows.push({
@@ -193,27 +253,23 @@ async function GetSettings() {
             }
         });
 
+        // Рендерим кастомные строки (они добавятся в конец таблицы)
+        renderCustomRows();
+
+        // Собираем все уникальные URL для списка вебхуков
         const allUrls = [];
         data.forEach(item => {
-            const urls = item.webhook_urls || [];
-            if (Array.isArray(urls)) {
-                urls.forEach(url => {
-                    if (url && !allUrls.includes(url)) allUrls.push(url);
-                });
-                webhookSelections[item.notify_type] = urls;
-            } else {
-                webhookSelections[item.notify_type] = [];
-            }
+            (item.webhook_urls || []).forEach(url => {
+                if (url && !allUrls.includes(url)) allUrls.push(url);
+            });
         });
         webhookUrls = allUrls;
 
-        multiselectInstances = [];
-        initAllMultiselects();
-
-        renderWebhookTable();
-        renderCustomRows();
-
+        // Обновляем все мультиселекты (включая кастомные)
         updateAllMultiselects();
+
+        // Рендерим таблицу URL-ов
+        renderWebhookTable();
 
     } catch (error) {
         console.error('Error:', error);
@@ -221,12 +277,6 @@ async function GetSettings() {
         renderCustomRows();
     }
 }
-
-/**
- * Объект хранения выбранных вебхуков для каждого типа уведомлений
- * @type {Object}
- */
-let webhookSelections = {};
 
 /**
  * Сохранение настроек уведомлений на сервере
@@ -250,32 +300,20 @@ async function CompleteSetup() {
         "data": []
     };
 
-    predefinedTypes.forEach(type => {
-        let emailId, tgId;
-        switch(type) {
-            case "user_register":
-                emailId = 'email_reg';
-                tgId = 'tg_reg';
-                break;
-            case "user_login":
-                emailId = 'email_login';
-                tgId = 'tg_login';
-                break;
-            case "admin_newImg":
-                emailId = 'email_admin_newImg';
-                tgId = 'tg_admin_newImg';
-                break;
-            case "user_imgVerdict":
-                emailId = 'email_user_imgVerdict';
-                tgId = 'tg_user_imgVerdict';
-                break;
-        }
+    const activeTypes = predefinedTypes.filter(type => !disabledPredefinedTypes.has(type));
+
+    activeTypes.forEach(type => {
+        // Используем статические id из карт
+        const emailId = emailIdMap[type];
+        const tgId = tgIdMap[type];
+        const customDescription = predefinedDescriptions[type];
 
         payload.data.push({
             "notify_type": type,
             "want_email": document.getElementById(emailId) ? document.getElementById(emailId).checked : false,
             "want_telegram": document.getElementById(tgId) ? document.getElementById(tgId).checked : false,
-            "webhook_urls": webhookSelections[type] || []
+            "webhook_urls": webhookSelections[type] || [],
+            ...(customDescription ? { "notify_description": customDescription } : {}),
         });
     });
 
@@ -314,6 +352,13 @@ async function CompleteSetup() {
     }
 }
 
+const defaultNotifyNames = {
+    'user_register': 'Регистрация аккаунта',
+    'user_login': 'Вход в аккаунт',
+    'user_imgVerdict': 'Решение по проверке фото',
+    'admin_newImg': '[admin] Новое фото для модерации'
+};
+
 /**
  * Очистка устаревших выборов вебхуков
  * @function cleanupSelections
@@ -324,6 +369,28 @@ function cleanupSelections() {
     Object.keys(webhookSelections).forEach(notifyType => {
         webhookSelections[notifyType] = webhookSelections[notifyType].filter(url => currentUrls.has(url));
     });
+}
+
+/**
+ * Возвращает элемент <tbody> таблицы .table_main.
+ * Если его нет, создаёт и добавляет.
+ * @returns {HTMLElement|null}
+ */
+function getTableBody() {
+    // Сначала пробуем найти tbody по ID
+    const tbody = document.getElementById('table_main_body');
+    if (tbody) return tbody;
+
+    // Если нет (на всякий случай), используем старый поиск
+    const table = document.querySelector('.table_main');
+    if (!table) return null;
+    let tbodyEl = table.querySelector('tbody');
+    if (!tbodyEl) {
+        tbodyEl = document.createElement('tbody');
+        tbodyEl.id = 'table_main_body'; // Добавляем ID, если создаем сами
+        table.appendChild(tbodyEl);
+    }
+    return tbodyEl;
 }
 
 /**
@@ -584,7 +651,7 @@ async function loginProcedure() {
             document.getElementById('isAuthorized').style.display = "block";
             closeModal();
             showNotification('success', 'Успех!', 'Успешный вход');
-            GetSettings();
+            GetSettings().then(() => hideDisabledRows());
         } else {
             console.log("Неправильные данные!");
             showNotification('error', 'Ошибка', result.Error_message || 'Неверный логин или пароль');
@@ -656,7 +723,7 @@ function restoreAuthState() {
         document.getElementById('isAuthorized').style.display = "block";
         console.log("Добро пожаловать, admin");
         initAllMultiselects();
-        GetSettings();
+        GetSettings().then(() => hideDisabledRows());
     } else {
         isLogged = false;
         document.getElementById('not_Logged').style.display = "flex";
@@ -664,11 +731,12 @@ function restoreAuthState() {
     }
 }
 
-/**
- * Массив URL вебхуков
- * @type {string[]}
- */
+// Массив URL вебхуков
 let webhookUrls = [];
+// Хранилище для выбранных вебхуков
+let webhookSelections = {};
+// Хранилище для кастомных названий захардкоженных параметров
+let predefinedDescriptions = {}; 
 
 /**
  * Индекс редактируемой строки вебхуков
@@ -853,16 +921,180 @@ function deleteCustomRow(id) {
 }
 
 /**
+ * Создание строки для предопределённого типа уведомления
+ * @param {Object} item - данные из БД
+ * @param {string} item.notify_type - ID типа
+ * @param {string} item.notify_description - название
+ * @param {boolean} item.want_email
+ * @param {boolean} item.want_telegram
+ * @param {string[]} item.webhook_urls
+ * @returns {HTMLTableRowElement}
+ */
+function createPredefinedRow(item) {
+    const tr = document.createElement('tr');
+    tr.dataset.notifyType = item.notify_type;
+
+    // Используем defaultNotifyNames, если нет описания в БД
+    const desc = item.notify_description || defaultNotifyNames[item.notify_type] || item.notify_type;
+
+    const nameTd = document.createElement('td');
+    nameTd.style.cssText = 'border:1px solid transparent; padding:8px; text-align:left;';
+    nameTd.innerHTML = `<p class="text">${desc}</p>`;
+
+    // ID
+    const idTd = document.createElement('td');
+    idTd.style.cssText = 'border:1px solid transparent; padding:8px; text-align:left;';
+    idTd.textContent = item.notify_type;
+
+    // Telegram
+    const tgTd = document.createElement('td');
+    tgTd.style.cssText = 'border:1px solid transparent; padding:8px;';
+    const tgChk = document.createElement('input');
+    tgChk.type = 'checkbox';
+    tgChk.id = tgIdMap[item.notify_type] || `tg_${item.notify_type}`;
+    tgChk.checked = item.want_telegram;
+    tgTd.appendChild(tgChk);
+
+    // Email
+    const emailTd = document.createElement('td');
+    emailTd.style.cssText = 'border:1px solid transparent; padding:8px;';
+    const emailChk = document.createElement('input');
+    emailChk.type = 'checkbox';
+    emailChk.id = emailIdMap[item.notify_type] || `email_${item.notify_type}`;
+    emailChk.checked = item.want_email;
+    emailTd.appendChild(emailChk);
+
+    // Webhook
+    const webhookTd = document.createElement('td');
+    webhookTd.style.cssText = 'border:1px solid transparent; padding:8px;';
+    const webhookContainer = document.createElement('div');
+    webhookContainer.className = 'webhook-multiselect-container';
+    webhookContainer.dataset.notifyType = item.notify_type;
+    webhookTd.appendChild(webhookContainer);
+
+    // Действия
+    const actionsTd = document.createElement('td');
+    actionsTd.style.cssText = 'border:1px solid transparent; padding:8px; text-align:center;';
+    const actionsDiv = document.createElement('div');
+    actionsDiv.className = 'actions-container';
+    actionsDiv.innerHTML = `
+        <button class="webhook-action-btn edit" data-notify-type="${item.notify_type}" title="Редактировать">✎</button>
+        <button class="webhook-action-btn delete delete-row-btn" data-notify-type="${item.notify_type}" title="Удалить">×</button>
+    `;
+    actionsTd.appendChild(actionsDiv);
+
+    tr.appendChild(nameTd);
+    tr.appendChild(idTd);
+    tr.appendChild(tgTd);
+    tr.appendChild(emailTd);
+    tr.appendChild(webhookTd);
+    tr.appendChild(actionsTd);
+
+    tr._nameCell = nameTd;
+    tr._actionsContainer = actionsDiv;
+
+    return tr;
+}
+
+/**
+ * Редактирование предопределенного параметра
+ * @function editPredefinedRow
+ * @param {string} notifyType - Тип уведомления
+ * @returns {void}
+ */
+function editPredefinedRow(notifyType) {
+    const row = document.querySelector(`tr[data-notify-type="${notifyType}"]`);
+    if (!row) return;
+
+    const textCell = row._nameCell || row.querySelector('td:first-child');
+    const textElem = textCell.querySelector('.text');
+    const originalText = textElem.textContent;
+
+    // Заменяем текст на поле ввода
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = originalText;
+    input.className = 'custom-row-input';
+    input.style.width = '100%';
+    textCell.innerHTML = '';
+    textCell.appendChild(input);
+    input.focus();
+
+    // Меняем кнопки действий на Сохранить и Отмена
+    const actionsCell = row._actionsContainer || row.querySelector('.actions-container');
+    actionsCell.innerHTML = '';
+
+    const saveBtn = document.createElement('button');
+    saveBtn.className = 'webhook-action-btn save';
+    saveBtn.textContent = '✓';
+    saveBtn.title = 'Сохранить изменения';
+
+    const cancelBtn = document.createElement('button');
+    cancelBtn.className = 'webhook-action-btn delete';
+    cancelBtn.textContent = '✕';
+    cancelBtn.title = 'Отмена';
+
+    saveBtn.onclick = function() {
+        const newText = input.value.trim();
+        if (newText) {
+            textCell.innerHTML = `<p class="text">${newText}</p>`;
+            predefinedDescriptions[notifyType] = newText;
+            restorePredefinedButtons(notifyType);
+            showNotification('success', 'Сохранено', 'Название параметра обновлено');
+        } else {
+            showNotification('error', 'Ошибка', 'Название не может быть пустым');
+        }
+    };
+
+    cancelBtn.onclick = function() {
+        textCell.innerHTML = `<p class="text">${originalText}</p>`;
+        restorePredefinedButtons(notifyType);
+    };
+
+    actionsCell.appendChild(saveBtn);
+    actionsCell.appendChild(cancelBtn);
+}
+
+/**
+ * Восстановление кнопок редактирования/удаления для дефолтной строки
+ * @function restorePredefinedButtons
+ * @param {string} notifyType - Тип уведомления
+ * @returns {void}
+ */
+function restorePredefinedButtons(notifyType) {
+    const row = document.querySelector(`tr[data-notify-type="${notifyType}"]`);
+    if (!row) return;
+    const actionsCell = row._actionsContainer || row.querySelector('.actions-container');
+    actionsCell.innerHTML = `
+        <button class="webhook-action-btn edit" data-notify-type="${notifyType}" title="Редактировать">✎</button>
+        <button class="webhook-action-btn delete delete-row-btn" data-notify-type="${notifyType}" title="Удалить">×</button>
+    `;
+    // Заново привязываем обработчики
+    const newEditBtn = actionsCell.querySelector('.edit');
+    const newDeleteBtn = actionsCell.querySelector('.delete-row-btn');
+    if (newEditBtn) newEditBtn.onclick = () => editPredefinedRow(notifyType);
+    if (newDeleteBtn) newDeleteBtn.onclick = () => deletePredefinedRow(notifyType);
+}
+
+/**
  * Удаление предопределенного параметра
  * @function deletePredefinedRow
- * @param {string} notifyType - Тип уведомления для удаления
+ * @param {string} notifyType - Тип уведомления
  * @returns {void}
  */
 function deletePredefinedRow(notifyType) {
-    customRows = customRows.filter(row => row.notify_type !== notifyType);
-    delete webhookSelections[notifyType];
-    showNotification('success', 'Удалено', 'Параметр удален');
-    renderCustomRows();
+    if (confirm(`Вы уверены, что хотите удалить параметр ${notifyType}?`)) {
+        // Добавляем в список удалённых
+        disabledPredefinedTypes.add(notifyType);
+        // Сохраняем в LocalStorage
+        localStorage.setItem('disabledPredefinedTypes', JSON.stringify([...disabledPredefinedTypes]));
+        // Удаляем строку из HTML
+        const row = document.querySelector(`tr[data-notify-type="${notifyType}"]`);
+        if (row) row.remove();
+        // Очищаем выборы вебхуков для этого типа
+        delete webhookSelections[notifyType];
+        showNotification('success', 'Удалено', 'Параметр удалён');
+    }
 }
 
 /**
@@ -889,11 +1121,13 @@ function updateCustomRow(id, field, value) {
  * @returns {void}
  */
 function renderCustomRows() {
-    const table = document.querySelector('.table_main');
-    
-    const existingCustomRows = document.querySelectorAll('.custom-row');
+    const tbody = getTableBody();
+    if (!tbody) return;
+
+    // Удаляем только ранее добавленные кастомные строки (они имеют класс .custom-row)
+    const existingCustomRows = tbody.querySelectorAll('.custom-row');
     existingCustomRows.forEach(row => row.remove());
-    
+
     customRows.forEach((row) => {
         const tr = document.createElement('tr');
         tr.className = 'custom-row';
@@ -1046,8 +1280,8 @@ function renderCustomRows() {
         tr.appendChild(webhookCell);
         tr.appendChild(actionsCell);
         
-        table.appendChild(tr);
-        
+        tbody.appendChild(tr);
+
         setTimeout(() => {
             if (!webhookSelections[webhookContainer.dataset.notifyType]) {
                 webhookSelections[webhookContainer.dataset.notifyType] = row.webhook_urls || [];
@@ -1067,7 +1301,7 @@ function renderCustomRows() {
                 button.setAttribute('data-handler-added', 'true');
                 button.addEventListener('click', function() {
                     const notifyType = this.dataset.notifyType;
-                    showNotification('info', 'Информация', `Редактирование параметра ${notifyType} пока не реализовано для предопределенных строк`);
+                    editPredefinedRow(notifyType);
                 });
             }
         });
@@ -1082,6 +1316,13 @@ function renderCustomRows() {
             });
         });
     }, 100);
+}
+
+function hideDisabledRows() {
+    disabledPredefinedTypes.forEach(type => {
+        const row = document.querySelector(`tr[data-notify-type="${type}"]`);
+        if (row) row.style.display = 'none';
+    });
 }
 
 /**
