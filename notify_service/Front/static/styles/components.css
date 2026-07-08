@@ -247,3 +247,95 @@
 .delete-custom-row:hover {
     background-color: #d32f2f;
 }
+
+/* Уведомления */
+.notification {
+    position: fixed;
+    left: 2%;
+    width: auto;
+    max-width: 500px;
+    min-width: 200px;
+    padding: 12px 20px;
+    border-radius: 5px;
+    overflow: hidden;
+    z-index: 2;
+    pointer-events: none;
+    display: block;
+    bottom: -100px;
+    opacity: 0;
+    transition: bottom 0.5s ease, opacity 0.5s ease;
+}
+
+.notification.hidden {
+    display: none;
+}
+
+.notification.success {
+    background-color: rgba(0, 255, 0, 0.75);
+}
+
+.notification.error {
+    background-color: rgba(255, 0, 0, 0.75);
+}
+
+.notification.visible {
+    bottom: 50px;
+    opacity: 1;
+}
+
+/* Состояния авторизации */
+.auth-hidden {
+    display: none !important;
+}
+
+/* Мультиселект */
+.select-placeholder {
+    color: #999;
+}
+
+.select-placeholder.has-value {
+    color: #333;
+}
+
+/* Ячейки таблицы */
+.table-cell {
+    border: 1px solid transparent;
+    padding: 8px;
+}
+
+.table-cell-left {
+    text-align: left;
+}
+
+.table-cell-center {
+    text-align: center;
+}
+
+/* Мультиселект - пустое сообщение */
+.option-item-empty {
+    color: #999;
+}
+
+/* Webhook контейнер */
+.webhook-multiselect-min-width {
+    min-width: 200px;
+}
+
+/* Инпут редактирования */
+.custom-row-input-full {
+    width: 100%;
+}
+
+/* Скрытый элемент */
+.hidden-element {
+    display: none;
+}
+
+/* Кнопки с отступами */
+.webhook-action-btn-margin-left {
+    margin-left: 5px;
+}
+
+.webhook-action-btn-margin-right {
+    margin-right: 5px;
+}

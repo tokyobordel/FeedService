@@ -1,6 +1,7 @@
 import './styles/main.css';
 import './styles/layout.css';
 import './styles/components.css';
+import * as api from './api.js';
 
 /**
  * Флаг состояния сохранения настроек
@@ -60,7 +61,7 @@ let disabledPredefinedTypes = new Set(JSON.parse(localStorage.getItem('disabledP
 
     const template = document.getElementById('notification');
     if (template) {
-        template.style.display = 'none';
+        template.classList.add('hidden');
     }
 
     const notifications = []; 
@@ -73,7 +74,7 @@ let disabledPredefinedTypes = new Set(JSON.parse(localStorage.getItem('disabledP
         notifications.forEach((item, index) => {
             const bottomPos = BOTTOM_OFFSET + index * (HEIGHT + GAP);
             item.element.style.bottom = bottomPos + 'px';
-            item.element.style.opacity = '1';
+            item.element.classList.add('visible');
         });
     }
 
@@ -89,7 +90,7 @@ let disabledPredefinedTypes = new Set(JSON.parse(localStorage.getItem('disabledP
 
         el.style.transition = 'bottom 0.5s ease, opacity 0.5s ease';
         el.style.bottom = (window.innerHeight + HEIGHT) + 'px';
-        el.style.opacity = '0';
+        el.classList.remove('visible');
 
         const onFinish = () => {
             el.remove();
@@ -112,38 +113,19 @@ let disabledPredefinedTypes = new Set(JSON.parse(localStorage.getItem('disabledP
 
         const clone = template.cloneNode(true);
         clone.id = '';
-        clone.style.display = 'block';
-        clone.style.position = 'fixed';
-        clone.style.left = LEFT_OFFSET;
-        clone.style.width = 'auto';
-        clone.style.maxWidth = '500px';
-        clone.style.minWidth = '200px';
-        clone.style.padding = '12px 20px';
-        clone.style.borderRadius = '5px';
-        clone.style.overflow = 'hidden';
-        clone.style.zIndex = '2';
-        clone.style.pointerEvents = 'none';
-
-        clone.style.backgroundColor = type === 'success'
-            ? 'rgba(0, 255, 0, 0.75)'
-            : 'rgba(255, 0, 0, 0.75)';
+        clone.classList.add('notification', type);
 
         const titleSpan = clone.querySelector('.errorText');
         const descSpan = clone.querySelector('.errDesc');
         if (titleSpan) titleSpan.textContent = title;
         if (descSpan) descSpan.textContent = description;
 
-        clone.style.transition = 'none';
-        clone.style.bottom = -(HEIGHT + 100) + 'px';
-        clone.style.opacity = '0';
-
         notifications.unshift({ element: clone });
 
         document.body.appendChild(clone);
 
-        clone.offsetHeight;
-
-        clone.style.transition = 'bottom 0.5s ease, opacity 0.5s ease';
+        clone.classList.remove('hidden');
+        clone.classList.add('visible');
         render();
 
         setTimeout(() => {
@@ -189,8 +171,7 @@ function updateWebhookUrlsFromExistingRows() {
 async function GetSettings() {
     console.log("GetSettings called");
     try {
-        const response = await fetchWithAuth("/api/get_notify_settings");
-        const result = await response.json();
+        const result = await api.getNotifySettings();
         console.log('Result:', result);
 
         const tbody = getTableBody();
@@ -332,11 +313,7 @@ async function CompleteSetup() {
     console.log("Final payload:", JSON.stringify(payload, null, 2));
 
     try {
-        const response = await fetchWithAuth("/api/notify_types", {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
+        const response = await api.saveNotifySettings(payload);
 
         if (!response.ok) {
             showNotification('error', 'Ошибка', 'При обращении к БД произошла ошибка');
@@ -430,9 +407,8 @@ function createMultiselect(container, notifyType) {
         optionsPanel.innerHTML = '';
         if (webhookUrls.length === 0) {
             const emptyMsg = document.createElement('div');
-            emptyMsg.className = 'option-item';
+            emptyMsg.className = 'option-item option-item-empty';
             emptyMsg.textContent = 'Нет доступных URL';
-            emptyMsg.style.color = '#999';
             optionsPanel.appendChild(emptyMsg);
             return;
         }
@@ -491,10 +467,10 @@ function createMultiselect(container, notifyType) {
         const selected = webhookSelections[notifyType] || [];
         if (selected.length === 0) {
             placeholder.textContent = 'Выберите URL';
-            placeholder.style.color = '#999';
+            placeholder.classList.remove('has-value');
         } else {
             placeholder.textContent = selected.join(', ');
-            placeholder.style.color = '#333';
+            placeholder.classList.add('has-value');
         }
     }
 
@@ -588,11 +564,6 @@ function closeModal() {
     modal_window.classList.add('closed');
     black_background.classList.remove('open');
     black_background.classList.add('closed');
-    modal_window.style.zIndex = '';
-    modal_window.style.opacity = '';
-    black_background.style.pointerEvents = '';
-    black_background.style.background = '';
-    black_background.style.backdropFilter = '';
 }
 
 /**
@@ -607,11 +578,6 @@ function openModal() {
     modal_window.classList.add('open');
     black_background.classList.remove('closed');
     black_background.classList.add('open');
-    modal_window.style.zIndex = '';
-    modal_window.style.opacity = '';
-    black_background.style.pointerEvents = '';
-    black_background.style.background = '';
-    black_background.style.backdropFilter = '';
 }
 
 /**
@@ -635,20 +601,14 @@ async function loginProcedure() {
     }
 
     try {
-        const response = await fetch("/api/moderator_login", {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
-
-        const result = await response.json();
+        const result = await api.login(payload);
         console.log(result);
         if (result.success == true) {
             console.log("Вход успешен!");
             localStorage.setItem('token', result.token);
             isLogged = true;
-            document.getElementById('not_Logged').style.display = "none";
-            document.getElementById('isAuthorized').style.display = "block";
+            document.getElementById('not_Logged').classList.add('auth-hidden');
+            document.getElementById('isAuthorized').classList.remove('auth-hidden');
             closeModal();
             showNotification('success', 'Успех!', 'Успешный вход');
             GetSettings().then(() => hideDisabledRows());
@@ -675,8 +635,8 @@ async function logoutProcedure() {
     document.getElementById('login_field').value = "";
     document.getElementById('password_field').value = "";
 
-    document.getElementById('not_Logged').style.display = "flex";
-    document.getElementById('isAuthorized').style.display = "none";
+    document.getElementById('not_Logged').classList.remove('auth-hidden');
+    document.getElementById('isAuthorized').classList.add('auth-hidden');
 
     webhookUrls = [];
     webhookSelections = {};
@@ -690,26 +650,6 @@ async function logoutProcedure() {
 }
 
 /**
- * Выполнение fetch запроса с авторизацией
- * @function fetchWithAuth
- * @param {string} url - URL для запроса
- * @param {Object} [options={}] - Опции запроса
- * @returns {Promise<Response>} Promise с ответом
- */
-function fetchWithAuth(url, options={}) {
-    const token = localStorage.getItem('token');
-
-    if (token) {
-        options.headers = {
-            ...options.headers,
-            'Authorization': `Bearer ${token}`
-        };
-    }
-
-    return fetch(url, options);
-}
-
-/**
  * Восстановление состояния авторизации
  * @function restoreAuthState
  * @returns {void}
@@ -719,15 +659,15 @@ function restoreAuthState() {
     
     if (token) {
         isLogged = true;
-        document.getElementById('not_Logged').style.display = "none";
-        document.getElementById('isAuthorized').style.display = "block";
+        document.getElementById('not_Logged').classList.add('auth-hidden');
+        document.getElementById('isAuthorized').classList.remove('auth-hidden');
         console.log("Добро пожаловать, admin");
         initAllMultiselects();
         GetSettings().then(() => hideDisabledRows());
     } else {
         isLogged = false;
-        document.getElementById('not_Logged').style.display = "flex";
-        document.getElementById('isAuthorized').style.display = "none";
+        document.getElementById('not_Logged').classList.remove('auth-hidden');
+        document.getElementById('isAuthorized').classList.add('auth-hidden');
     }
 }
 
@@ -784,14 +724,17 @@ function renderWebhookTable() {
 
         if (row.isNew && !row.isEditing) {
             const saveBtn = document.createElement('button');
-            saveBtn.className = 'webhook-action-btn save';
+            saveBtn.className = 'webhook-action-btn save hidden-element';
             saveBtn.textContent = '✓';
-            saveBtn.style.display = 'none';
             saveBtn.title = 'Сохранить новый URL';
-            saveBtn.style.marginLeft = '5px';
+            saveBtn.classList.add('webhook-action-btn-margin-left');
 
             input.addEventListener('input', function() {
-                saveBtn.style.display = this.value.trim() ? 'inline-flex' : 'none';
+                if (this.value.trim()) {
+                    saveBtn.classList.remove('hidden-element');
+                } else {
+                    saveBtn.classList.add('hidden-element');
+                }
             });
 
             saveBtn.addEventListener('click', function(e) {
@@ -814,10 +757,9 @@ function renderWebhookTable() {
         } else if (!row.isNew) {
             if (row.isEditing) {
                 const saveEditBtn = document.createElement('button');
-                saveEditBtn.className = 'webhook-action-btn save';
+                saveEditBtn.className = 'webhook-action-btn save webhook-action-btn-margin-left';
                 saveEditBtn.textContent = '✓';
                 saveEditBtn.title = 'Сохранить изменения';
-                saveEditBtn.style.marginLeft = '5px';
                 saveEditBtn.addEventListener('click', function(e) {
                     e.stopPropagation();
                     const val = input.value.trim();
@@ -839,10 +781,9 @@ function renderWebhookTable() {
                 container.appendChild(saveEditBtn);
             } else {
                 const editBtn = document.createElement('button');
-                editBtn.className = 'webhook-action-btn edit';
+                editBtn.className = 'webhook-action-btn edit webhook-action-btn-margin-right';
                 editBtn.textContent = '✎';
                 editBtn.title = 'Редактировать URL';
-                editBtn.style.marginRight = '5px';
                 editBtn.addEventListener('click', function(e) {
                     e.stopPropagation();
                     editingIndex = row.index;
@@ -938,17 +879,17 @@ function createPredefinedRow(item) {
     const desc = item.notify_description || defaultNotifyNames[item.notify_type] || item.notify_type;
 
     const nameTd = document.createElement('td');
-    nameTd.style.cssText = 'border:1px solid transparent; padding:8px; text-align:left;';
+    nameTd.className = 'table-cell table-cell-left';
     nameTd.innerHTML = `<p class="text">${desc}</p>`;
 
     // ID
     const idTd = document.createElement('td');
-    idTd.style.cssText = 'border:1px solid transparent; padding:8px; text-align:left;';
+    idTd.className = 'table-cell table-cell-left';
     idTd.textContent = item.notify_type;
 
     // Telegram
     const tgTd = document.createElement('td');
-    tgTd.style.cssText = 'border:1px solid transparent; padding:8px;';
+    tgTd.className = 'table-cell';
     const tgChk = document.createElement('input');
     tgChk.type = 'checkbox';
     tgChk.id = tgIdMap[item.notify_type] || `tg_${item.notify_type}`;
@@ -957,7 +898,7 @@ function createPredefinedRow(item) {
 
     // Email
     const emailTd = document.createElement('td');
-    emailTd.style.cssText = 'border:1px solid transparent; padding:8px;';
+    emailTd.className = 'table-cell';
     const emailChk = document.createElement('input');
     emailChk.type = 'checkbox';
     emailChk.id = emailIdMap[item.notify_type] || `email_${item.notify_type}`;
@@ -966,7 +907,7 @@ function createPredefinedRow(item) {
 
     // Webhook
     const webhookTd = document.createElement('td');
-    webhookTd.style.cssText = 'border:1px solid transparent; padding:8px;';
+    webhookTd.className = 'table-cell';
     const webhookContainer = document.createElement('div');
     webhookContainer.className = 'webhook-multiselect-container';
     webhookContainer.dataset.notifyType = item.notify_type;
@@ -974,7 +915,7 @@ function createPredefinedRow(item) {
 
     // Действия
     const actionsTd = document.createElement('td');
-    actionsTd.style.cssText = 'border:1px solid transparent; padding:8px; text-align:center;';
+    actionsTd.className = 'table-cell table-cell-center';
     const actionsDiv = document.createElement('div');
     actionsDiv.className = 'actions-container';
     actionsDiv.innerHTML = `
@@ -1014,8 +955,7 @@ function editPredefinedRow(notifyType) {
     const input = document.createElement('input');
     input.type = 'text';
     input.value = originalText;
-    input.className = 'custom-row-input';
-    input.style.width = '100%';
+    input.className = 'custom-row-input custom-row-input-full';
     textCell.innerHTML = '';
     textCell.appendChild(input);
     input.focus();
@@ -1134,9 +1074,7 @@ function renderCustomRows() {
         tr.dataset.id = row.id;
         
         const nameCell = document.createElement('td');
-        nameCell.style.border = '1px solid transparent';
-        nameCell.style.padding = '8px';
-        nameCell.style.textAlign = 'left';
+        nameCell.className = 'table-cell table-cell-left';
         
         if (row.isNew || editingRowId === row.id) {
             const nameInput = document.createElement('input');
@@ -1155,9 +1093,7 @@ function renderCustomRows() {
         }
         
         const idCell = document.createElement('td');
-        idCell.style.border = '1px solid transparent';
-        idCell.style.padding = '8px';
-        idCell.style.textAlign = 'left';
+        idCell.className = 'table-cell table-cell-left';
         
         if (row.isNew || editingRowId === row.id) {
             const idInput = document.createElement('input');
@@ -1176,8 +1112,7 @@ function renderCustomRows() {
         }
         
         const tgCell = document.createElement('td');
-        tgCell.style.border = '1px solid transparent';
-        tgCell.style.padding = '8px';
+        tgCell.className = 'table-cell';
         const tgCheckbox = document.createElement('input');
         tgCheckbox.type = 'checkbox';
         tgCheckbox.checked = row.want_telegram;
@@ -1187,8 +1122,7 @@ function renderCustomRows() {
         tgCell.appendChild(tgCheckbox);
         
         const emailCell = document.createElement('td');
-        emailCell.style.border = '1px solid transparent';
-        emailCell.style.padding = '8px';
+        emailCell.className = 'table-cell';
         const emailCheckbox = document.createElement('input');
         emailCheckbox.type = 'checkbox';
         emailCheckbox.checked = row.want_email;
@@ -1198,28 +1132,23 @@ function renderCustomRows() {
         emailCell.appendChild(emailCheckbox);
         
         const webhookCell = document.createElement('td');
-        webhookCell.style.border = '1px solid transparent';
-        webhookCell.style.padding = '8px';
+        webhookCell.className = 'table-cell';
         const webhookContainer = document.createElement('div');
-        webhookContainer.className = 'webhook-multiselect-container';
+        webhookContainer.className = 'webhook-multiselect-container webhook-multiselect-min-width';
         webhookContainer.dataset.notifyType = row.notify_type || `custom_${row.id}`;
-        webhookContainer.style.minWidth = '200px';
         webhookCell.appendChild(webhookContainer);
         
         const actionsCell = document.createElement('td');
-        actionsCell.style.border = '1px solid transparent';
-        actionsCell.style.padding = '8px';
-        actionsCell.style.textAlign = 'center';
+        actionsCell.className = 'table-cell table-cell-center';
         
         const actionsContainer = document.createElement('div');
         actionsContainer.className = 'actions-container';
         
         if (row.isNew || editingRowId === row.id) {
             const saveBtn = document.createElement('button');
-            saveBtn.className = 'webhook-action-btn save';
+            saveBtn.className = 'webhook-action-btn save webhook-action-btn-margin-left';
             saveBtn.textContent = '✓';
             saveBtn.title = row.isNew ? 'Добавить параметр' : 'Сохранить изменения';
-            saveBtn.style.marginLeft = '5px';
             
             saveBtn.addEventListener('click', () => {
                 console.log('Сохранение, customRows до:', customRows);
@@ -1247,10 +1176,9 @@ function renderCustomRows() {
             actionsContainer.appendChild(saveBtn);
         } else {
             const editBtn = document.createElement('button');
-            editBtn.className = 'webhook-action-btn edit';
+            editBtn.className = 'webhook-action-btn edit webhook-action-btn-margin-right';
             editBtn.textContent = '✎';
             editBtn.title = 'Редактировать';
-            editBtn.style.marginRight = '5px';
             editBtn.addEventListener('click', () => {
                 editingRowId = row.id;
                 renderCustomRows();
@@ -1321,7 +1249,7 @@ function renderCustomRows() {
 function hideDisabledRows() {
     disabledPredefinedTypes.forEach(type => {
         const row = document.querySelector(`tr[data-notify-type="${type}"]`);
-        if (row) row.style.display = 'none';
+        if (row) row.classList.add('hidden-element');
     });
 }
 

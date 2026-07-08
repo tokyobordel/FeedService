@@ -134,6 +134,7 @@ func (d DTO) HandleNotify(w http.ResponseWriter, r *http.Request) {
 			}
 			return
 		}
+		logMessage += "Регистрация пользователя успешна. Добавление в базу!"
 		return // выходим, я больше не отправляю такие сообщения
 	}
 
