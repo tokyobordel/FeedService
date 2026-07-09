@@ -35,7 +35,7 @@ export async function loginProcedure() {
 
     const payload = {
         "login": login_value,
-        "password": password_value
+        "pass": password_value
     }
 
     try {

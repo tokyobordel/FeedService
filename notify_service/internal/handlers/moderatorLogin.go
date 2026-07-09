@@ -4,13 +4,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
+	"os"
 	"time"
 	"traineesheep/notifyservice/internal/errs"
 	"traineesheep/notifyservice/internal/types"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 )
 
 // HandleModeratorLogin обрабатывает POST-запросы на авторизацию модератора.
@@ -39,6 +41,7 @@ import (
 // @Router /api/moderator_login [post]
 func (d DTO) HandleModeratorLogin(w http.ResponseWriter, r *http.Request) {
 	var response types.ResponseData
+	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
 	var login_data types.LoginData
 	var (
 		jwt_key []byte
@@ -64,7 +67,7 @@ func (d DTO) HandleModeratorLogin(w http.ResponseWriter, r *http.Request) {
 		logMessage += response.Error_message + "\n"
 		w.WriteHeader(http.StatusInternalServerError)
 		if _, err := w.Write(response_byte); err != nil {
-			log.Println(errs.ErrWritingToRespBody)
+			log.Error().Msg(errs.ErrWritingToRespBody)
 		}
 		return
 	}
@@ -78,7 +81,7 @@ func (d DTO) HandleModeratorLogin(w http.ResponseWriter, r *http.Request) {
 		logMessage += response.Error_message + "\n"
 		w.WriteHeader(http.StatusBadRequest)
 		if _, err := w.Write(response_byte); err != nil {
-			log.Println(errs.ErrWritingToRespBody)
+			log.Error().Msg(errs.ErrWritingToRespBody)
 		}
 		return
 	}
@@ -95,6 +98,7 @@ func (d DTO) HandleModeratorLogin(w http.ResponseWriter, r *http.Request) {
 		jwt_s, err := jwt_t.SignedString(jwt_key)
 		if err != nil {
 			logMessage += fmt.Sprintf("Ошибка при создании криптографической подписи для токена: %v", err)
+			log.Error().Msg(logMessage)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
@@ -106,10 +110,10 @@ func (d DTO) HandleModeratorLogin(w http.ResponseWriter, r *http.Request) {
 		response_byte, _ := json.MarshalIndent(response, "", "    ")
 		w.WriteHeader(http.StatusOK)
 		if _, err := w.Write(response_byte); err != nil {
-			log.Println(errs.ErrWritingToRespBody)
+			log.Error().Msg(errs.ErrWritingToRespBody)
 		}
 		logMessage += "Логин и пароль успешно прошли проверку!\n"
-		log.Println(logMessage)
+		log.Info().Msg(logMessage)
 		return
 	} else {
 		var response types.ResponseData
@@ -119,7 +123,7 @@ func (d DTO) HandleModeratorLogin(w http.ResponseWriter, r *http.Request) {
 		logMessage += response.Error_message + "\n"
 		w.WriteHeader(http.StatusOK)
 		if _, err := w.Write(response_byte); err != nil {
-			log.Println(errs.ErrWritingToRespBody)
+			log.Error().Msg(errs.ErrWritingToRespBody)
 		}
 		return
 	}

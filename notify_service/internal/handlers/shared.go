@@ -6,15 +6,11 @@
 package handlers
 
 import (
-	"fmt"
-	"log"
 	"net/http"
-	"strings"
 	"sync"
 	"traineesheep/notifyservice/pkg/email"
 
 	"github.com/go-telegram/bot"
-	"github.com/golang-jwt/jwt/v5"
 	"github.com/gorilla/websocket"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -53,16 +49,13 @@ type DTO struct {
 //   - jwtSecret: секретный ключ для JWT токенов
 //
 // Возвращает указатель на созданный DTO.
-func NewDTO(bot *bot.Bot, conn *pgxpool.Pool, smtp *email.SmtpDTO, channel chan int, wg *sync.WaitGroup, secret string, login string, pass string) *DTO {
+func NewDTO(bot *bot.Bot, conn *pgxpool.Pool, smtp *email.SmtpDTO, channel chan int, wg *sync.WaitGroup) *DTO {
 	return &DTO{
 		bot:            bot,
 		sql_connection: conn,
 		smtp:           smtp,
 		grtsChannels:   channel,
 		wg:             wg,
-		JwtSecret:      secret,
-		admin_login:    login,
-		admin_pass:     pass,
 	}
 }
 
@@ -80,51 +73,4 @@ func enableCors(w http.ResponseWriter) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
 	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-
-}
-
-// Функция ValidateToken нужна для валидация JWT токена
-func ValidateToken(r *http.Request, jwtSecret string) (jwt.MapClaims, error) {
-	logMessage += "Был получен запрос на проверку JWT токена\n"
-	logMessage += "=========================\n"
-
-	authHeader := r.Header.Get("Authorization")
-
-	if jwtSecret == "" {
-		logMessage += "JWT секрет оказался не задан...\n"
-		return nil, fmt.Errorf("JWT секрет не задан")
-	}
-
-	if authHeader == "" {
-		err := "Проверка токена не прошла! Необходима авторизация!"
-		logMessage += err + "\n"
-		return nil, fmt.Errorf(err)
-	}
-
-	headerParts := strings.Split(authHeader, " ")
-	if len(headerParts) != 2 || headerParts[0] != "Bearer" {
-		err := "Неправильный формат хедера: Необходимо использовать Bearer <token>"
-		logMessage += err + "\n"
-		return nil, fmt.Errorf(err)
-	}
-
-	tokenString := headerParts[1]
-
-	claims := jwt.MapClaims{}
-	token, err := jwt.ParseWithClaims(tokenString, claims, func(t *jwt.Token) (interface{}, error) {
-		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, jwt.ErrSignatureInvalid
-		}
-		return []byte(jwtSecret), nil
-	})
-
-	if err != nil || !token.Valid {
-		err := "Неправильный токен или токен истёк!"
-		logMessage += err + "\n"
-		return nil, fmt.Errorf(err)
-	}
-
-	logMessage += "Проверка токена прошла успешно!\n"
-	log.Println(logMessage)
-	return claims, nil
 }

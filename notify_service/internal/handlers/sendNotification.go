@@ -5,13 +5,16 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
+	"os"
 	"traineesheep/notifyservice/internal/database"
 	"traineesheep/notifyservice/internal/errs"
 	"traineesheep/notifyservice/internal/tgbot"
 	"traineesheep/notifyservice/internal/types"
 	"traineesheep/notifyservice/internal/webhook_handler"
+
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 )
 
 var logMessage string
@@ -47,6 +50,7 @@ var logMessage string
 // @Security ApiKeyAuth
 func (d DTO) HandleNotify(w http.ResponseWriter, r *http.Request) {
 	var response types.ResponseData
+	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
 	var req types.Recipent
 	database_conn_dto := database.NewDatabaseDTO(d.sql_connection)
 
@@ -79,7 +83,7 @@ func (d DTO) HandleNotify(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		logMessage += response.Error_message + "\n"
 		if _, err := w.Write(response_byte); err != nil {
-			log.Println(errs.ErrWritingToRespBody)
+			log.Error().Msg(errs.ErrWritingToRespBody)
 		}
 		return
 	}
@@ -91,7 +95,7 @@ func (d DTO) HandleNotify(w http.ResponseWriter, r *http.Request) {
 		logMessage += response.Error_message + "\n"
 		w.WriteHeader(http.StatusBadRequest)
 		if _, err := w.Write(response_byte); err != nil {
-			log.Println(errs.ErrWritingToRespBody)
+			log.Error().Msg(errs.ErrWritingToRespBody)
 		}
 		return
 	}
@@ -115,7 +119,7 @@ func (d DTO) HandleNotify(w http.ResponseWriter, r *http.Request) {
 		logMessage += response.Error_message + "\n"
 		w.WriteHeader(http.StatusBadRequest)
 		if _, err := w.Write(response_byte); err != nil {
-			log.Println(errs.ErrWritingToRespBody)
+			log.Error().Msg(errs.ErrWritingToRespBody)
 			return
 		}
 	}
@@ -129,12 +133,13 @@ func (d DTO) HandleNotify(w http.ResponseWriter, r *http.Request) {
 			logMessage += response.Error_message + "\n"
 			w.WriteHeader(http.StatusBadRequest)
 			if _, err := w.Write(response_byte); err != nil {
-				log.Println(errs.ErrWritingToRespBody)
+				log.Error().Msg(errs.ErrWritingToRespBody)
 				return
 			}
 			return
 		}
-		logMessage += "Регистрация пользователя успешна. Добавление в базу!"
+		logMessage += "Регистрация пользователя успешна. Добавление в базу!\n"
+		log.Info().Msg(logMessage)
 		return // выходим, я больше не отправляю такие сообщения
 	}
 
@@ -147,20 +152,18 @@ func (d DTO) HandleNotify(w http.ResponseWriter, r *http.Request) {
 	// Получаем значения переключателей куда мы хотим получить уведомление
 	err, want_email, want_telegram, want_webhook = database_conn_dto.GetCheckboxSettings(req.Notify_Type)
 	if err != nil {
-		logMessage += fmt.Sprintf("При обращении к базе данных произошла ошибка %v", err)
+		logMessage += fmt.Sprintf("При обращении к базе данных произошла ошибка %v\n", err)
+		log.Error().Msg(logMessage)
 		return
 	}
 
 	notification_message := req.Message
 
-	if req.Notify_Type == "user_register" {
-		log.Println("Этого метода больше нет!!")
-		return
-	}
-
 	// Если мы хотим уведомление в ТГ
 	if want_telegram {
-		if err := tgbot.SendMessage(d.bot, context.Background(), tg_user_id, notification_message, &logMessage); err != nil {
+		if err := tgbot.SendMessage(d.bot, context.Background(), tg_user_id, notification_message); err != nil {
+			logMessage += fmt.Sprintf("Ошибка при отправке пользователю уведомления в Telegram: %v", err)
+		} else {
 			logMessage += fmt.Sprintf("Сообщение было доставлено в Telegram пользователю с id %v\n", tg_user_id)
 		}
 	}
@@ -191,9 +194,9 @@ func (d DTO) HandleNotify(w http.ResponseWriter, r *http.Request) {
 	response_byte, _ := json.MarshalIndent(response, "", "    ")
 	w.WriteHeader(http.StatusOK)
 	if _, err := w.Write(response_byte); err != nil {
-		log.Println(errs.ErrWritingToRespBody)
+		log.Error().Msg(errs.ErrWritingToRespBody)
 		return
 	}
 	logMessage += "Отправка сообщений была успешно завершена!"
-	log.Println(logMessage)
+	log.Info().Msg(logMessage)
 }

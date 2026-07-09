@@ -4,11 +4,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
+	"os"
 	"traineesheep/notifyservice/internal/database"
 	"traineesheep/notifyservice/internal/errs"
 	"traineesheep/notifyservice/internal/types"
+
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 )
 
 // HandleSaveSettingsCheckmarks обрабатывает POST-запросы на сохранение настроек уведомлений.
@@ -41,6 +44,7 @@ import (
 func (d DTO) HandleSaveSettingsCheckmarks(w http.ResponseWriter, r *http.Request) {
 	var response types.ResponseData
 	database_conn_dto := database.NewDatabaseDTO(d.sql_connection)
+	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
 
 	enableCors(w)
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
@@ -75,7 +79,7 @@ func (d DTO) HandleSaveSettingsCheckmarks(w http.ResponseWriter, r *http.Request
 		logMessage += response.Error_message + "\n"
 		w.WriteHeader(http.StatusInternalServerError)
 		if _, err := w.Write(respBytes); err != nil {
-			log.Println(errs.ErrWritingToRespBody)
+			log.Error().Msg(errs.ErrWritingToRespBody)
 			return
 		}
 		return
@@ -88,19 +92,20 @@ func (d DTO) HandleSaveSettingsCheckmarks(w http.ResponseWriter, r *http.Request
 		respBytes, _ := json.MarshalIndent(response, "", "    ")
 		logMessage += response.Error_message + "\n"
 		w.WriteHeader(http.StatusBadRequest)
-		log.Println(err)
+		log.Error().Msg(err.Error())
 		if _, err := w.Write(respBytes); err != nil {
-			log.Println(errs.ErrWritingToRespBody)
+			log.Error().Msg(errs.ErrWritingToRespBody)
 			return
 		}
 		return
 	}
 
-	fmt.Println("Мне пришло", json_list)
+	// fmt.Println("Мне пришло", json_list)
 
 	// После того как получили данные записываем их в базу, не создавая дубликаты
 	if err := database_conn_dto.DeleteSettings(); err != nil {
 		logMessage += fmt.Sprintf("При обращении к базе данных произошла ошибка: %v", err)
+		log.Error().Msg(logMessage)
 		return
 	}
 	for _, elem := range json_list.Data {
@@ -110,6 +115,7 @@ func (d DTO) HandleSaveSettingsCheckmarks(w http.ResponseWriter, r *http.Request
 
 		if err := database_conn_dto.SaveSettings(elem); err != nil {
 			logMessage += fmt.Sprintf("При обращении к базе данных произошла ошибка: %v", err)
+			log.Error().Msg(logMessage)
 			return
 		}
 	}
@@ -119,10 +125,10 @@ func (d DTO) HandleSaveSettingsCheckmarks(w http.ResponseWriter, r *http.Request
 	respBytes, _ := json.MarshalIndent(response, "", "    ")
 	w.WriteHeader(http.StatusOK)
 	if _, err := w.Write(respBytes); err != nil {
-		log.Println(errs.ErrWritingToRespBody)
+		log.Error().Msg(logMessage)
 		return
 	}
 
 	logMessage += "Настройки админ-панели были успешно сохранены в БД\n"
-	log.Println(logMessage)
+	log.Info().Msg(logMessage)
 }

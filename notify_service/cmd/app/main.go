@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"log"
+	"fmt"
 	"os"
 	"os/signal"
 	"strconv"
@@ -10,24 +10,24 @@ import (
 	"syscall"
 	"time"
 	"traineesheep/notifyservice/internal/handlers"
+	"traineesheep/notifyservice/internal/services"
 	"traineesheep/notifyservice/internal/tgbot"
 	"traineesheep/notifyservice/pkg/email"
 
-	fiberSwagger "github.com/gofiber/swagger"
 	"github.com/tokyobordel/traineepkg/adapters/api/v1/auth"
 	authMiddlewarePkg "github.com/tokyobordel/traineepkg/adapters/api/v1/middleware/authjwt"
+
 	authSwagger "github.com/tokyobordel/traineepkg/adapters/api/v1/swagger"
 	authService "github.com/tokyobordel/traineepkg/auth/service"
 	jwtAuth "github.com/tokyobordel/traineepkg/authorization/jwt"
 
-	//_ "traineesheep/notifyservice/docs" // сгенерированная документация
-
 	"github.com/go-telegram/bot"
 	"github.com/gofiber/fiber/v3"
-	"github.com/gofiber/fiber/v3/middleware/adaptor"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
-	httpSwagger "github.com/swaggo/http-swagger"
+
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 )
 
 // SmtpDTO представляет собой структуру данных для конфигурации SMTP сервера.
@@ -53,22 +53,26 @@ type SmtpDTO struct {
 //  9. Корректно завершает работу всех компонентов
 func main() {
 	godotenv.Load("./config/data.env")
+	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
 
 	requiredEnvVars := []string{"DATABASE_CONNECT", "BOT_TOKEN", "WORKER_COUNT", "JWT_SECRET"}
 	for _, envVar := range requiredEnvVars {
 		if os.Getenv(envVar) == "" {
-			log.Fatalf("Required environment variable %s is not set", envVar)
+			logMsg := fmt.Sprintf("Required environment variable %s is not set", envVar)
+			log.Fatal().Msg(logMsg)
 		}
 	}
 
 	var channelSize, err = strconv.Atoi(os.Getenv("WORKER_COUNT"))
 	if err != nil {
-		log.Fatal("Error! Channel size can't be converted to int!")
+		log.Fatal().Msg("Error! Channel size can't be converted to int!")
+		return
 	}
 
 	pool, err := pgxpool.New(context.Background(), os.Getenv("DATABASE_CONNECT"))
 	if err != nil {
-		log.Fatal("Error connecting to Database")
+		log.Fatal().Msg("Error connecting to Database")
+		return
 	}
 	defer pool.Close()
 
@@ -78,35 +82,36 @@ func main() {
 
 	tgBot, err := bot.New(os.Getenv("BOT_TOKEN"), opts[0])
 	if err != nil {
-		log.Fatal("Error starting TG bot")
+		log.Error().Msg("Error starting TG bot")
+		return
 	}
 	smtpDto := email.NewSmtpDTO(os.Getenv("smtpEmail"), os.Getenv("smtpPassword"), os.Getenv("smtpHost"), os.Getenv("smtpPort"))
 
 	grtChan := make(chan int, channelSize)
 	wg := new(sync.WaitGroup{})
-	d := handlers.NewDTO(tgBot, pool, smtpDto, grtChan, wg, os.Getenv("JWT_SECRET"), os.Getenv("admin_login"), os.Getenv("admin_password"))
+	d := handlers.NewDTO(tgBot, pool, smtpDto, grtChan, wg)
 
 	app := fiber.New(fiber.Config{
 		AppName: "Notify Service v1.0",
 	})
 
-	SetupRouter(app)
-
-	var myAuthService authService.IAuthService // ваша реализация
-	jwtService := jwtAuth.NewService("secret", 15*time.Minute, 7*24*time.Hour)
+	var myAuthService authService.IAuthService = services.NewUserService(os.Getenv("admin_password"), os.Getenv("admin_login"))
+	jwtService := jwtAuth.NewService(os.Getenv("JWT_SECRET"), 15*time.Minute, 7*24*time.Hour)
 
 	authMiddleware := authMiddlewarePkg.NewMiddleware(jwtService)
 	handler := auth.NewHandler(myAuthService, jwtService, 15*time.Minute, 7*24*time.Hour)
 	auth.SetupRouter(app, handler)
 	authSwagger.SetupRouter(app)
+	handlers.SetupNotifySwagger(app)
 	api := app.Group("/api")
 
 	api.Post("/notify", d.HandleNotify)
 
 	api.Post("/moderator_login", d.HandleModeratorLogin)
-	app.Get("/swagger/*", adaptor.HTTPHandler(httpSwagger.Handler(
-		httpSwagger.URL("http://localhost:8080/swagger/doc.json"),
-	)))
+
+	// app.Get("/swagger/*", adaptor.HTTPHandler(httpSwagger.Handler(
+	// 	httpSwagger.URL("http://localhost:8080/swagger/doc.json"),
+	// )))
 
 	protected := api.Group("/", authMiddleware.RequireAccessToken())
 
@@ -115,12 +120,12 @@ func main() {
 	serverErrors := make(chan error, 1)
 
 	go func() {
-		log.Println("Server has been started on port 8080!")
+		log.Info().Msg("Server has been started on port 8080!")
 		serverErrors <- app.Listen(":8080")
 	}()
 
 	go func() {
-		log.Println("Telegram bot has been started")
+		log.Info().Msg("Telegram bot has been started")
 		tgBot.Start(context.Background())
 	}()
 
@@ -130,25 +135,22 @@ func main() {
 
 	select {
 	case err := <-serverErrors:
-		log.Fatalf("Server error: %v", err)
+		logMsg := fmt.Sprintf("Server error: %v", err)
+		log.Info().Msg(logMsg)
 	case <-stop:
-		log.Println("Shutting down server...")
+		log.Info().Msg("Shutting down server...")
 
 		if err := app.Shutdown(); err != nil {
-			log.Println("HTTP server shutdown error:", err)
+			logMsg := fmt.Sprintf("HTTP server shutdown error:", err)
+			log.Error().Msg(logMsg)
 		}
 
-		log.Println("Waiting for active requests to finish...")
+		log.Info().Msg("Waiting for active requests to finish...")
 		wg.Wait()
 
 		if _, err := tgBot.Close(context.Background()); err != nil {
-			log.Println("Ошибка при отключении ТГ бота:", err)
+			logMsg := fmt.Sprintf("Ошибка при отключении ТГ бота:", err)
+			log.Error().Msg(logMsg)
 		}
 	}
-}
-
-func SetupRouter(app *fiber.App) {
-	app.Get("/auth/swagger/*", fiberSwagger.New(fiberSwagger.Config{
-		InstanceName: "swagger",
-	}))
 }

@@ -3,11 +3,15 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
+	"os"
+
 	"traineesheep/notifyservice/internal/database"
 	"traineesheep/notifyservice/internal/errs"
 	"traineesheep/notifyservice/internal/types"
+
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 )
 
 // HandleGetNotifySettings обрабатывает GET-запросы на получение текущих настроек уведомлений.
@@ -35,6 +39,7 @@ import (
 // @Security ApiKeyAuth
 func (d DTO) HandleGetNotifySettings(w http.ResponseWriter, r *http.Request) {
 	var response types.ResponseData
+	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
 	database_conn_dto := database.NewDatabaseDTO(d.sql_connection)
 
 	enableCors(w)
@@ -81,7 +86,7 @@ func (d DTO) HandleGetNotifySettings(w http.ResponseWriter, r *http.Request) {
 		logMessage += fmt.Sprintf(response.Error_message + "\n")
 		w.WriteHeader(http.StatusInternalServerError)
 		if _, err := w.Write(respBytes); err != nil {
-			log.Println(errs.ErrWritingToRespBody)
+			log.Error().Msg(errs.ErrWritingToRespBody)
 			return
 		}
 		return
@@ -89,10 +94,10 @@ func (d DTO) HandleGetNotifySettings(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 	if _, err := w.Write(resp_byte); err != nil {
-		log.Println(errs.ErrWritingToRespBody)
+		log.Error().Msg(errs.ErrWritingToRespBody)
 		return
 	}
 
 	logMessage += "Настройки админ-панели были успешно получены из БД!\n"
-	log.Println(logMessage)
+	log.Info().Msg(logMessage)
 }
