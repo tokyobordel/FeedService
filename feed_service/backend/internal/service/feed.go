@@ -27,25 +27,25 @@ func NewFeedService(feedDAO *repository.FeedDAO,
 
 // LoadFeed загружает все посты (общая лента), отсортированные по дате создания.
 // Возвращает срез постов и ошибку.
-func (fs *FeedService) LoadFeed() ([]models.Post, error) {
-	return fs.FeedDAO.LoadFeed()
+func (feedService *FeedService) LoadFeed() ([]models.Post, error) {
+	return feedService.FeedDAO.LoadFeed()
 }
 
 // LoadUserFeed загружает посты конкретного пользователя по его идентификатору.
 // Возвращает срез постов и ошибку.
-func (fs *FeedService) LoadUserFeed(userID int) ([]models.Post, error) {
-	return fs.FeedDAO.LoadUserFeed(userID)
+func (feedService *FeedService) LoadUserFeed(userID int) ([]models.Post, error) {
+	return feedService.FeedDAO.LoadUserFeed(userID)
 }
 
 // CreatePost создаёт новый пост с указанным автором, заголовком, описанием
 // и списком идентификаторов изображений. Изображения должны быть предварительно
 // сохранены во внешнем сервисе. Возвращает созданный пост и ошибку.
-func (fs *FeedService) CreatePost(userID int, title string, description string, files []*multipart.FileHeader) (models.Post, error) {
-	imageIDs, err := fs.ImageClient.SaveFiles(files)
+func (feedService *FeedService) CreatePost(userID int, title string, description string, files []*multipart.FileHeader) (models.Post, error) {
+	imageIDs, err := feedService.ImageClient.SaveFiles(files)
 	if err != nil {
 		// todo заглушка на случай, если сервис хранения не развернут
 		// todo просто создаём пост без изображений
 		// return models.Post{}, err
 	}
-	return fs.FeedDAO.CreatePost(userID, title, description, imageIDs)
+	return feedService.FeedDAO.CreatePost(userID, title, description, imageIDs)
 }

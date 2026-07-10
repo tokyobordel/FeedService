@@ -116,7 +116,7 @@ func (isc *ImageClient) SaveFiles(files []*multipart.FileHeader) ([]int, error) 
 		}
 
 		// Создаём POST-запрос с JSON-телом
-		httpReq, err := http.NewRequest("POST", isc.BaseURL+"/upload", bytes.NewReader(jsonBody))
+		httpReq, err := http.NewRequest("POST", isc.BaseURL+"/image/upload", bytes.NewReader(jsonBody))
 		if err != nil {
 			return nil, fmt.Errorf("Внутренняя ошибка")
 		}

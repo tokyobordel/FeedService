@@ -71,6 +71,7 @@ document.addEventListener('DOMContentLoaded', () => {
         btn.addEventListener('click', (e) => {
             const modal = e.target.closest('.modal');
             closeModal(modal);
+            history.replaceState(null, document.title, location.pathname + location.search);
         });
     });
 

@@ -99,7 +99,7 @@ func (ctrl *Controller) Upload(c fiber.Ctx) error {
 		})
 	}
 
-	msg := fmt.Sprintf("POST /upload: Пользователь %s отправил %d фото, создан пост с ID=%d",
+	msg := fmt.Sprintf("POST /upload: Пользователь %d отправил %d фото, создан пост с ID=%d",
 		userID,
 		len(post.Images),
 		post.ID)

@@ -42,23 +42,23 @@ func NewUserService(userDAO *repository.UserDAO, notifyClient *client.NotifyClie
 
 // ExistsByUsername проверяет, существует ли пользователь с указанным именем.
 // Возвращает true, если пользователь найден, и ошибку при проблемах с БД.
-func (us *UserService) ExistsByUsername(username string) (bool, error) {
-	return us.UserDAO.ExistsByUsername(username)
+func (userService *UserService) ExistsByUsername(username string) (bool, error) {
+	return userService.UserDAO.ExistsByUsername(username)
 }
 
 // ExistsByUsername проверяет, существует ли пользователь с указанным email.
 // Возвращает true, если пользователь найден, и ошибку при проблемах с БД.
-func (us *UserService) ExistsByEmail(email string) (bool, error) {
-	return us.UserDAO.ExistsByEmail(email)
+func (userService *UserService) ExistsByEmail(email string) (bool, error) {
+	return userService.UserDAO.ExistsByEmail(email)
 }
 
 // GetByUsername возвращает модель пользователя по его имени.
 // Если пользователь не найден, возвращается пустая структура и ошибка sql.ErrNoRows.
-func (us *UserService) GetByUsername(username string) (model.User, error) {
-	return us.UserDAO.GetByUsername(username)
+func (userService *UserService) GetByUsername(username string) (model.User, error) {
+	return userService.UserDAO.GetByUsername(username)
 }
 
 // ConfirmUserAccount подтверждает регистрацию пользователя.
-func (us *UserService) ConfirmUserAccount(userID int) error {
-	return us.UserDAO.ConfirmUserAccount(userID)
+func (userService *UserService) ConfirmUserAccount(userID int) error {
+	return userService.UserDAO.ConfirmUserAccount(userID)
 }
