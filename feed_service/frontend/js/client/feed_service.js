@@ -155,7 +155,7 @@ class FeedServiceClient {
      * @throws {Error} при сетевой ошибке или ошибке сервера
      */
     async sendConfirmation() {
-        const response = await fetch('/api/users/me/confirmation', {
+        const response = await fetch('/api/users/confirmation', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
         });

@@ -95,6 +95,7 @@ func Create(app *fiber.App,
 	users.Get("/confirm", middleware.ConfirmRequired(tokenService.GetSecret()), ctrl.Confirm)
 
 	users.Post("/notify", requireAccessToken, ctrl.NotifyAdmin)
+	users.Post("/confirmation", requireAccessToken, ctrl.SendConfirm) // POST /users/me/confirmation
 
 	// ---------- Группа /posts (все требуют access-токен) ----------
 	posts := app.Group("/api/posts", requireAccessToken)
