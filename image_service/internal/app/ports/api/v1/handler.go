@@ -65,12 +65,12 @@ func (h *Handler) SetupRoutes(app *fiber.App) {
 
 	api.Get("/guest/image/:id", h.GetImageByIdGuest)
 	api.Get("/image/meta/:id", h.GetImageMetaById)
-	api.Get("/images", h.GetAllImages)
+	api.Get("/image", h.GetAllImages)
 	api.Post("/upload", h.AddImage)
 
 	protected := api.Group("/", h.authMiddleware.RequireAccessToken())
 	protected.Get("/admin/image/:id", h.GetImageByIdAdmin)
-	protected.Get("/images/unmoderated", h.GetUnmoderatedImages)
-	protected.Put("/images/:id/block", h.BlockImage)
-	protected.Put("/images/:id/approve", h.ApprovedImage)
+	protected.Get("/image/unmoderated", h.GetUnmoderatedImages)
+	protected.Put("/image/:id/block", h.BlockImage)
+	protected.Put("/image/:id/approve", h.ApprovedImage)
 }

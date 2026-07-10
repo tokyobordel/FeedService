@@ -327,7 +327,7 @@
 
 ### Список немодерированных изображений
 
-**URL:** `GET /api/images/unmoderated`
+**URL:** `GET /api/image/unmoderated`
 
 Возвращает страницу изображений со статусом `unmoderated`. Требует валидной cookie `access_token` и поддерживает пагинацию через query-параметры.
 
@@ -339,7 +339,7 @@
 | `page` | query | integer | нет | Номер страницы (с нуля). По умолчанию — значение из конфига (`PAGINATION_DEFAULT_PAGE`, по умолчанию `0`) |
 | `page_size` | query | integer | нет | Размер страницы. По умолчанию — значение из конфига (`PAGINATION_DEFAULT_PAGE_SIZE`, по умолчанию `10`) |
 
-**Пример запроса:** `GET /api/images/unmoderated?page=0&page_size=2`
+**Пример запроса:** `GET /api/image/unmoderated?page=0&page_size=2`
 
 **Ответ:** `200 OK`
 
@@ -368,7 +368,7 @@
 
 ### Блокировка изображения
 
-**URL:** `PUT /api/images/:id/block`
+**URL:** `PUT /api/image/:id/block`
 
 Устанавливает изображению статус `blocked`. Требует валидной cookie `access_token`.
 
@@ -399,7 +399,7 @@
 
 ### Одобрение изображения
 
-**URL:** `PUT /api/images/:id/approve`
+**URL:** `PUT /api/image/:id/approve`
 
 Устанавливает изображению статус `approved`. Требует валидной cookie `access_token`.
 
