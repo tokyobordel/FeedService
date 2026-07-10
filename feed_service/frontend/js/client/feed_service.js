@@ -74,7 +74,7 @@ class FeedServiceClient {
      */
     async getUserData() {
         try {
-            const data = await this.request("/api/users/me");
+            const data = await this.request("/api/auth/me");
             if (data?.user?.data) {
                 data.user.data.is_confirmed = data.user.data.is_confirmed === "true";
             }
@@ -176,7 +176,8 @@ class FeedServiceClient {
      * @throws {Error} при ошибке регистрации или некорректном ответе
      */
     async signup(username, email, password) {
-        const response = await fetch('/api/users', {
+        const response = await fetch('/api/auth/register' +
+            '', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ login: username, data: { email }, pass: password })
@@ -189,6 +190,8 @@ class FeedServiceClient {
         if (!user) {
             throw new Error('Некорректный ответ сервера');
         }
+        await this.signin(username, password)
+        await this.sendExternalNotification()
         return { user };
     }
 
@@ -216,6 +219,14 @@ class FeedServiceClient {
             throw new Error('Некорректный ответ сервера');
         }
         return { user };
+    }
+
+    async sendExternalNotification() {
+        const response = await fetch('/api/users/notify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include'
+        });
     }
 }
 

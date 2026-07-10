@@ -82,36 +82,21 @@ func Create(app *fiber.App,
 	app.Get("/health", func(c fiber.Ctx) error {
 		return c.JSON(utils.ApiResponse{Success: true})
 	})
-	app.Get("/feed", ctrl.Feed) // общая лента
+	app.Get("/api/feed", ctrl.Feed) // общая лента
 
 	// ---------- Группа /auth ----------
-	loginHandler := authPackage.NewHandler(authService, tokenService,
-		tokenService.GetAccessTTL(), tokenService.GetRefreshTTL()).Login
-	logoutHandler := authPackage.NewHandler(authService, tokenService,
-		tokenService.GetAccessTTL(), tokenService.GetRefreshTTL()).Logout
-	auth := app.Group("/auth")
-	auth.Post("/login", loginHandler)
-	auth.Post("/logout", logoutHandler)
+	authPackage.SetupRouter(app, authPackage.NewHandler(authService, tokenService,
+		tokenService.GetAccessTTL(), tokenService.GetRefreshTTL()))
 
 	// ---------- Группа /users ----------
-	users := app.Group("/users")
-	// Регистрация (публичный доступ)
-	registerHanlder := authPackage.NewHandler(authService, tokenService,
-		tokenService.GetAccessTTL(), tokenService.GetRefreshTTL()).Register
-	users.Post("/", registerHanlder)
+	users := app.Group("/api/users")
 
 	// Подтверждение email (свой middleware для проверки query-токена)
 	users.Get("/confirm", middleware.ConfirmRequired(tokenService.GetSecret()), ctrl.Confirm)
 
-	// Защищённая подгруппа /users/me (все маршруты требуют access-токен)
-
-	me := users.Group("/me", requireAccessToken)
-	getMeHandler := authPackage.NewHandler(authService, tokenService,
-		tokenService.GetAccessTTL(), tokenService.GetRefreshTTL()).GetMe
-	me.Get("/", getMeHandler)                  // GET /users/me
-	me.Post("/confirmation", ctrl.SendConfirm) // POST /users/me/confirmation
+	users.Post("/notify", requireAccessToken, ctrl.NotifyAdmin)
 
 	// ---------- Группа /posts (все требуют access-токен) ----------
-	posts := app.Group("/posts", requireAccessToken)
+	posts := app.Group("/api/posts", requireAccessToken)
 	posts.Post("/", ctrl.Upload)
 }

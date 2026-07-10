@@ -27,11 +27,11 @@ module.exports = (env, argv) => {
       open: false,
       proxy: [
         {
-          context: ['/api'],
+          context: ['/'],
           target: 'http://localhost:8080',
           changeOrigin: true,
           pathRewrite: {
-            '^/api': '',
+            '^/': '',
           }
         }
       ]
