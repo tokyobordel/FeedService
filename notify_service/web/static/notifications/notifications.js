@@ -12,23 +12,36 @@ if (template) {
 
 const notifications = [];
 
+/**
+ * Обновляет позиции всех уведомлений на экране
+ * Располагает уведомления вертикально с учетом отступов и высоты
+ */
+/**
+ * Обновляет позиции всех уведомлений на экране
+ * Располагает уведомления вертикально с учетом отступов и высоты
+ */
 function render() {
     notifications.forEach((item, index) => {
-        const bottomPos = BOTTOM_OFFSET + index * (HEIGHT + GAP);
-        item.element.style.bottom = bottomPos + 'px';
-        item.element.classList.add('visible');
+        item.element.classList.remove('out');
+        for (let i = 0; i < 10; i++) {
+            item.element.classList.remove('pos-' + i);
+        }
+        item.element.classList.add('pos-' + index, 'visible');
     });
 }
 
+/**
+ * Удаляет самое старое уведомление из очереди
+ * Применяет анимацию удаления и обновляет отображение оставшихся уведомлений
+ */
 function removeOldest() {
     if (notifications.length === 0) return;
 
     const oldest = notifications.pop();
     const el = oldest.element;
 
-    el.style.transition = 'bottom 0.5s ease, opacity 0.5s ease';
-    el.style.bottom = (window.innerHeight + HEIGHT) + 'px';
     el.classList.remove('visible');
+    el.classList.add('out');
 
     const onFinish = () => {
         el.remove();
@@ -39,6 +52,12 @@ function removeOldest() {
     render();
 }
 
+/**
+ * Отображает уведомление на экране
+ * @param {string} type - Тип уведомления (success, error, warning, info)
+ * @param {string} title - Заголовок уведомления
+ * @param {string} description - Описание уведомления
+ */
 export function showNotification(type, title, description) {
     if (!template) return;
 

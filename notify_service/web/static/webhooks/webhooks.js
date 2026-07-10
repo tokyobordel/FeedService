@@ -1,11 +1,37 @@
 import './webhooks.css';
 import { showNotification } from '../notifications/notifications.js';
 
+/**
+ * Массив всех доступных вебхуков
+ * @type {Array<string>}
+ */
 export let webhookUrls = [];
+
+/**
+ * Объект, хранящий выбранные вебхуки для каждого типа уведомления
+ * Ключ - тип уведомления, значение - массив выбранных URL
+ * @type {Object<string, Array<string>>}
+ */
 export let webhookSelections = {};
+
+/**
+ * Массив экземпляров мультиселектов для каждого типа уведомления
+ * @type {Array<{notifyType: string, instance: Object}>}
+ */
 export let multiselectInstances = [];
+
+/**
+ * Индекс редактируемого вебхука в таблице (null если ничего не редактируется)
+ * @type {number|null}
+ */
 let editingIndex = null;
 
+/**
+ * Создает мультиселект для выбора вебхуков для конкретного типа уведомления
+ * @param {HTMLElement} container - Элемент контейнера, в котором будет создан мультиселект
+ * @param {string} notifyType - Тип уведомления, для которого создается мультиселект
+ * @returns {Object} - Объект с методами для управления мультиселектом (renderOptions, updateDisplayText, getSelected, setSelected)
+ */
 export function createMultiselect(container, notifyType) {
     if (!webhookSelections[notifyType]) {
         webhookSelections[notifyType] = [];
@@ -134,6 +160,11 @@ export function createMultiselect(container, notifyType) {
     };
 }
 
+/**
+ * Инициализирует все мультиселекты на странице
+ * Находит все элементы с классом 'webhook-multiselect-container',
+ * создает для каждого экземпляр мультиселекта и сохраняет их в массиве multiselectInstances
+ */
 export function initAllMultiselects() {
     const containers = document.querySelectorAll('.webhook-multiselect-container');
     multiselectInstances = [];
@@ -144,6 +175,12 @@ export function initAllMultiselects() {
     });
 }
 
+/**
+ * Очищает выборы вебхуков, удаляя те, которые больше не доступны
+ * После удаления вебхуков из общего списка, эта функция удаляет их из всех выборов
+ * @see webhookUrls
+ * @see webhookSelections
+ */
 export function cleanupSelections() {
     const currentUrls = new Set(webhookUrls);
     Object.keys(webhookSelections).forEach(notifyType => {
@@ -151,6 +188,11 @@ export function cleanupSelections() {
     });
 }
 
+/**
+ * Обновляет все мультиселекты на странице
+ * Сначала очищает выборы (удаляет недоступные URL), затем обновляет отображение каждого мультиселекта
+ * @see cleanupSelections
+ */
 export function updateAllMultiselects() {
     cleanupSelections();
     multiselectInstances.forEach(({ instance }) => {

@@ -8,13 +8,15 @@ import './webhooks/webhooks.js';
 import { restoreAuthState, initAuthListeners } from './auth/auth.js';
 import { initSettingsListeners } from './settings/settings.js';
 
-restoreAuthState();
-
+// Инициализация приложения после загрузки DOM
 if (!window._listenersAdded) {
     window._listenersAdded = true;
 
     document.addEventListener('DOMContentLoaded', function() {
+        // Инициализация слушателей аутентификации
         initAuthListeners();
+        // Инициализация слушателей настроек
         initSettingsListeners();
+        restoreAuthState();
     });
 }

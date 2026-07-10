@@ -6,36 +6,50 @@ import { initAllMultiselects, webhookUrls, webhookSelections, multiselectInstanc
 
 export let isLogged = false;
 
+/**
+ * Закрывает модальное окно аутентификации
+ * Добавляет класс 'closed' и удаляет класс 'open' у модального окна и затемненного фона
+ */
 export function closeModal() {
-    let modal_window = document.getElementById('modalWindow');
-    let black_background = document.getElementById('blackBackground');
-    modal_window.classList.remove('open');
-    modal_window.classList.add('closed');
-    black_background.classList.remove('open');
-    black_background.classList.add('closed');
+    let modalWindow = document.getElementById('modalWindow');
+    let blackBackground = document.getElementById('blackBackground');
+    modalWindow.classList.remove('open');
+    modalWindow.classList.add('closed');
+    blackBackground.classList.remove('open');
+    blackBackground.classList.add('closed');
 }
 
+/**
+ * Открывает модальное окно аутентификации
+ * Добавляет класс 'open' и удаляет класс 'closed' у модального окна и затемненного фона
+ */
 export function openModal() {
-    let modal_window = document.getElementById('modalWindow');
-    let black_background = document.getElementById('blackBackground');
-    modal_window.classList.remove('closed');
-    modal_window.classList.add('open');
-    black_background.classList.remove('closed');
-    black_background.classList.add('open');
+    let modalWindow = document.getElementById('modalWindow');
+    let blackBackground = document.getElementById('blackBackground');
+    modalWindow.classList.remove('closed');
+    modalWindow.classList.add('open');
+    blackBackground.classList.remove('closed');
+    blackBackground.classList.add('open');
 }
 
+/**
+ * Обрабатывает процесс входа пользователя в систему
+ * Получает значения логина и пароля из полей ввода, отправляет запрос на аутентификацию
+ * При успешном входе сохраняет токен в localStorage, обновляет UI и показывает уведомление об успехе
+ * При неудаче показывает сообщение об ошибке
+ */
 export async function loginProcedure() {
-    let login_value = document.getElementById('login_field').value.trim();
-    let password_value = document.getElementById('password_field').value.trim();
+    let loginValue = document.getElementById('loginField').value.trim();
+    let passwordValue = document.getElementById('passwordField').value.trim();
 
-    if (!login_value || !password_value) {
+    if (!loginValue || !passwordValue) {
         showNotification('error', 'Ошибка', 'Заполните все поля');
         return;
     }
 
     const payload = {
-        "login": login_value,
-        "pass": password_value
+        "login": loginValue,
+        "pass": passwordValue
     }
 
     try {
@@ -45,14 +59,14 @@ export async function loginProcedure() {
             console.log("Вход успешен!");
             localStorage.setItem('token', result.token);
             isLogged = true;
-            document.getElementById('not_Logged').classList.add('auth-hidden');
+            document.getElementById('notLogged').classList.add('auth-hidden');
             document.getElementById('isAuthorized').classList.remove('auth-hidden');
             closeModal();
             showNotification('success', 'Успех!', 'Успешный вход');
             GetSettings().then(() => hideDisabledRows());
         } else {
             console.log("Неправильные данные!");
-            showNotification('error', 'Ошибка', result.Error_message || 'Неверный логин или пароль');
+            showNotification('error', 'Ошибка', result.ErrorMessage || 'Неверный логин или пароль');
         }
     } catch (error) {
         console.error('Login error:', error);
@@ -60,14 +74,19 @@ export async function loginProcedure() {
     }
 }
 
+/**
+ * Обрабатывает процесс выхода пользователя из системы
+ * Очищает токен из localStorage, сбрасывает состояние авторизации,
+ * очищает форму входа, обновляет UI и сбрасывает настройки вебхуков
+ */
 export async function logoutProcedure() {
     localStorage.removeItem('token');
     isLogged = false;
 
-    document.getElementById('login_field').value = "";
-    document.getElementById('password_field').value = "";
+    document.getElementById('loginField').value = "";
+    document.getElementById('passwordField').value = "";
 
-    document.getElementById('not_Logged').classList.remove('auth-hidden');
+    document.getElementById('notLogged').classList.remove('auth-hidden');
     document.getElementById('isAuthorized').classList.add('auth-hidden');
 
     webhookUrls.length = 0;
@@ -81,23 +100,36 @@ export async function logoutProcedure() {
     showNotification('success', 'Успех', 'Выход из аккаунта успешен!');
 }
 
+/**
+ * Восстанавливает состояние аутентификации при загрузке страницы
+ * Проверяет наличие токена в localStorage и восстанавливает состояние авторизации
+ */
+/**
+ * Восстанавливает состояние аутентификации при загрузке страницы
+ * Проверяет наличие токена в localStorage и восстанавливает состояние авторизации
+ */
 export function restoreAuthState() {
     const token = localStorage.getItem('token');
 
     if (token) {
         isLogged = true;
-        document.getElementById('not_Logged').classList.add('auth-hidden');
+        document.getElementById('notLogged').classList.add('auth-hidden');
         document.getElementById('isAuthorized').classList.remove('auth-hidden');
         console.log("Добро пожаловать, admin");
         initAllMultiselects();
         GetSettings().then(() => hideDisabledRows());
     } else {
         isLogged = false;
-        document.getElementById('not_Logged').classList.remove('auth-hidden');
+        document.getElementById('notLogged').classList.remove('auth-hidden');
         document.getElementById('isAuthorized').classList.add('auth-hidden');
     }
 }
 
+/**
+ * Инициализирует обработчики событий для элементов аутентификации
+ * Назначает обработчики кликов на кнопки открытия/закрытия модального окна,
+ * входа и выхода из системы
+ */
 export function initAuthListeners() {
     const openModalBtn = document.getElementById('openModalBtn');
     if (openModalBtn) openModalBtn.addEventListener('click', openModal);

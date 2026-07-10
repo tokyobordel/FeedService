@@ -15,6 +15,26 @@
     transition: bottom 0.5s ease, opacity 0.5s ease;
 }
 
+.notification.pos-0 { bottom: 50px; }
+.notification.pos-1 { bottom: 150px; }
+.notification.pos-2 { bottom: 250px; }
+.notification.pos-3 { bottom: 350px; }
+.notification.pos-4 { bottom: 450px; }
+.notification.pos-5 { bottom: 550px; }
+.notification.pos-6 { bottom: 650px; }
+.notification.pos-7 { bottom: 750px; }
+.notification.pos-8 { bottom: 850px; }
+.notification.pos-9 { bottom: 950px; }
+
+.notification.visible {
+    opacity: 1;
+}
+
+.notification.out {
+    bottom: 120%;
+    opacity: 0;
+}
+
 .notification.hidden {
     display: none;
 }
@@ -25,11 +45,6 @@
 
 .notification.error {
     background-color: rgba(255, 0, 0, 0.75);
-}
-
-.notification.visible {
-    bottom: 50px;
-    opacity: 1;
 }
 
 .errorNotification {

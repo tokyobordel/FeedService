@@ -26,6 +26,10 @@ let customRows = [];
 let editingRowId = null;
 let predefinedDescriptions = {};
 
+/**
+ * Скрывает строки в таблице настроек, соответствующие отключенным типам уведомлений
+ * Добавляет класс 'hidden-element' к строкам с типами уведомлений, отмеченными как отключенные
+ */
 export function hideDisabledRows() {
     disabledPredefinedTypes.forEach(type => {
         const row = document.querySelector(`tr[data-notify-type="${type}"]`);
@@ -33,6 +37,10 @@ export function hideDisabledRows() {
     });
 }
 
+/**
+ * Инициализирует мультиселекты для существующих строк в таблице
+ * Очищает существующие экземпляры и создает новые для каждого контейнера мультиселекта
+ */
 function initExistingMultiselects() {
     const containers = document.querySelectorAll('.webhook-multiselect-container');
     multiselectInstances.length = 0;
@@ -43,6 +51,10 @@ function initExistingMultiselects() {
     });
 }
 
+/**
+ * Обновляет массив webhookUrls на основе выбранных значений в существующих мультиселектах
+ * Собирает все выбранные URL из мультиселектов и обновляет глобальный массив webhookUrls
+ */
 function updateWebhookUrlsFromExistingRows() {
     const containers = document.querySelectorAll('.webhook-multiselect-container');
     const urls = new Set();
@@ -56,6 +68,13 @@ function updateWebhookUrlsFromExistingRows() {
     webhookUrls.push(...urls);
 }
 
+/**
+ * Получает настройки уведомлений с сервера и обновляет интерфейс
+ * Выполняет запрос к API для получения настроек, обрабатывает полученные данные,
+ * обновляет таблицу настроек и элементы интерфейса соответствующим образом
+ * @async
+ * @returns {Promise<void>}
+ */
 export async function GetSettings() {
     console.log("GetSettings called");
     try {
@@ -100,7 +119,7 @@ export async function GetSettings() {
                 const container = row.querySelector('.webhook-multiselect-container');
                 if (container) {
                     const nt = container.dataset.notifyType;
-                    webhookSelections[nt] = item.webhook_urls || [];
+                    webhookSelections[nt] = item.webhookUrls || [];
                     const instance = createMultiselect(container, nt);
                     multiselectInstances.push({ notifyType: nt, instance });
                 }
@@ -109,9 +128,9 @@ export async function GetSettings() {
                     id: Date.now() + Math.random(),
                     notify_type: item.notify_type,
                     description: item.notify_description || item.notify_type,
-                    want_email: item.want_email,
-                    want_telegram: item.want_telegram,
-                    webhook_urls: item.webhook_urls || []
+                    wantEmail: item.wantEmail,
+                    wantTelegram: item.wantTelegram,
+                    webhookUrls: item.webhookUrls || []
                 });
             }
         });
@@ -120,7 +139,7 @@ export async function GetSettings() {
 
         const allUrls = [];
         data.forEach(item => {
-            (item.webhook_urls || []).forEach(url => {
+            (item.webhookUrls || []).forEach(url => {
                 if (url && !allUrls.includes(url)) allUrls.push(url);
             });
         });
@@ -138,6 +157,13 @@ export async function GetSettings() {
     }
 }
 
+/**
+ * Сохраняет текущие настройки уведомлений на сервере
+ * Собирает данные из всех элементов интерфейса (предустановленные и пользовательские типы уведомлений),
+ * формирует payload и отправляет его на сервер через API
+ * @async
+ * @returns {Promise<void>}
+ */
 export async function CompleteSetup() {
     console.log('CompleteSetup called', new Date().toISOString());
     if (isSaving) return;
@@ -163,9 +189,9 @@ export async function CompleteSetup() {
 
         payload.data.push({
             "notify_type": type,
-            "want_email": document.getElementById(emailId) ? document.getElementById(emailId).checked : false,
-            "want_telegram": document.getElementById(tgId) ? document.getElementById(tgId).checked : false,
-            "webhook_urls": webhookSelections[type] || [],
+            "wantEmail": document.getElementById(emailId) ? document.getElementById(emailId).checked : false,
+            "wantTelegram": document.getElementById(tgId) ? document.getElementById(tgId).checked : false,
+            "webhookUrls": webhookSelections[type] || [],
             ...(customDescription ? { "notify_description": customDescription } : {}),
         });
     });
@@ -175,9 +201,9 @@ export async function CompleteSetup() {
             payload.data.push({
                 "notify_type": row.notify_type,
                 "notify_description": row.description,
-                "want_email": row.want_email,
-                "want_telegram": row.want_telegram,
-                "webhook_urls": webhookSelections[row.notify_type] || []
+                "wantEmail": row.wantEmail,
+                "wantTelegram": row.wantTelegram,
+                "webhookUrls": webhookSelections[row.notify_type] || []
             });
         }
     });
@@ -201,14 +227,19 @@ export async function CompleteSetup() {
     }
 }
 
+/**
+ * Добавляет новую пустую строку для создания пользовательского типа уведомления
+ * Создает объект новой строки со значениями по умолчанию, добавляет его в массив customRows,
+ * устанавливает как текущую редактируемую строку и перерисовывает таблицу
+ */
 export function addCustomRow() {
     const newRow = {
         id: Date.now() + Math.random(),
         notify_type: '',
         description: '',
-        want_email: false,
-        want_telegram: false,
-        webhook_urls: [],
+        wantEmail: false,
+        wantTelegram: false,
+        webhookUrls: [],
         isNew: true
     };
 
@@ -223,13 +254,28 @@ export function addCustomRow() {
     }, 100);
 }
 
+/**
+ * Удаляет пользовательскую строку из таблицы настроек по идентификатору
+ * @param {string|number} id - Идентификатор строки для удаления
+ */
 export function deleteCustomRow(id) {
     customRows = customRows.filter(row => row.id !== id);
     renderCustomRows();
 }
 
+/**
+ * Создает строку таблицы для предопределенного типа уведомления
+ * @param {Object} item - Объект с данными о типе уведомления
+ * @returns {HTMLTableRowElement} - Созданная строка таблицы
+ */
+/**
+ * Создает строку таблицы для предопределенного типа уведомления
+ * @param {Object} item - Объект с данными о типе уведомления
+ * @returns {HTMLTableRowElement} - Созданная строка таблицы
+ */
 function createPredefinedRow(item) {
     const tr = document.createElement('tr');
+    //tr.dataset.notifyType = document.createElement('tr');
     tr.dataset.notifyType = item.notify_type;
 
     const desc = item.notify_description || defaultNotifyNames[item.notify_type] || item.notify_type;
@@ -247,7 +293,7 @@ function createPredefinedRow(item) {
     const tgChk = document.createElement('input');
     tgChk.type = 'checkbox';
     tgChk.id = tgIdMap[item.notify_type] || `tg_${item.notify_type}`;
-    tgChk.checked = item.want_telegram;
+    tgChk.checked = item.wantTelegram;
     tgTd.appendChild(tgChk);
 
     const emailTd = document.createElement('td');
@@ -255,7 +301,7 @@ function createPredefinedRow(item) {
     const emailChk = document.createElement('input');
     emailChk.type = 'checkbox';
     emailChk.id = emailIdMap[item.notify_type] || `email_${item.notify_type}`;
-    emailChk.checked = item.want_email;
+    emailChk.checked = item.wantEmail;
     emailTd.appendChild(emailChk);
 
     const webhookTd = document.createElement('td');
@@ -288,6 +334,11 @@ function createPredefinedRow(item) {
     return tr;
 }
 
+/**
+ * Переводит строку предопределенного типа уведомления в режим редактирования
+ * Заменяет текстовое описание на поле ввода для изменения названия уведомления
+ * @param {string} notifyType - Тип уведомления, который нужно отредактировать
+ */
 export function editPredefinedRow(notifyType) {
     const row = document.querySelector(`tr[data-notify-type="${notifyType}"]`);
     if (!row) return;
@@ -338,6 +389,11 @@ export function editPredefinedRow(notifyType) {
     actionsCell.appendChild(cancelBtn);
 }
 
+/**
+ * Восстанавливает исходные состояния кнопок редактирования/удаления для строки предопределенного типа уведомления
+ * После редактирования возвращает кнопки в их обычное состояние с правильными обработчиками событий
+ * @param {string} notifyType - Тип уведомления, для которого нужно восстановить кнопки
+ */
 function restorePredefinedButtons(notifyType) {
     const row = document.querySelector(`tr[data-notify-type="${notifyType}"]`);
     if (!row) return;
@@ -352,6 +408,12 @@ function restorePredefinedButtons(notifyType) {
     if (newDeleteBtn) newDeleteBtn.onclick = () => deletePredefinedRow(notifyType);
 }
 
+/**
+ * Удаляет предопределенный тип уведомления из настроек
+ * @param {string} notifyType - Тип уведомления для удаления
+ * Запрашивает подтверждение у пользователя, отмечает тип как отключенный,
+ * сохраняет изменения в localStorage, удаляет строку из таблицы и показывает уведомление об успехе
+ */
 export function deletePredefinedRow(notifyType) {
     if (confirm(`Вы уверены, что хотите удалить параметр ${notifyType}?`)) {
         disabledPredefinedTypes.add(notifyType);
@@ -363,177 +425,230 @@ export function deletePredefinedRow(notifyType) {
     }
 }
 
+/**
+ * Обновляет конкретное поле в пользовательской строке настроек
+ * @param {string|number} id - Идентификатор строки для обновления
+ * @param {string} field - Название поля для обновления
+ * @param {*} value - Новое значение поля
+ * Если поле является 'notify_type' и у строки нет webhookUrls, инициализирует пустой массив
+ */
 function updateCustomRow(id, field, value) {
     const row = customRows.find(r => r.id === id);
     if (row) {
         row[field] = value;
-        if (field === 'notify_type' && !row.webhook_urls) {
-            row.webhook_urls = [];
+        if (field === 'notify_type' && !row.webhookUrls) {
+            row.webhookUrls = [];
         }
     }
 }
 
-export function renderCustomRows() {
-    const tbody = getTableBody();
-    if (!tbody) return;
+/**
+ * Создает ячейку с названием для пользовательской строки
+ * @param {Object} row - Объект строки с данными
+ * @returns {HTMLTableCellElement} - Ячейка таблицы
+ */
+function createNameCell(row) {
+    const nameCell = document.createElement('td');
+    nameCell.className = 'table-cell table-cell-left';
 
-    const existingCustomRows = tbody.querySelectorAll('.custom-row');
-    existingCustomRows.forEach(row => row.remove());
-
-    customRows.forEach((row) => {
-        const tr = document.createElement('tr');
-        tr.className = 'custom-row';
-        tr.dataset.id = row.id;
-
-        const nameCell = document.createElement('td');
-        nameCell.className = 'table-cell table-cell-left';
-
-        if (row.isNew || editingRowId === row.id) {
-            const nameInput = document.createElement('input');
-            nameInput.type = 'text';
-            nameInput.className = 'custom-row-input';
-            nameInput.placeholder = 'Введите название';
-            nameInput.value = row.description || '';
-            nameInput.addEventListener('input', (e) => {
-                updateCustomRow(row.id, 'description', e.target.value);
-            });
-            nameCell.appendChild(nameInput);
-        } else {
-            const nameText = document.createElement('span');
-            nameText.textContent = row.description || '';
-            nameCell.appendChild(nameText);
-        }
-
-        const idCell = document.createElement('td');
-        idCell.className = 'table-cell table-cell-left';
-
-        if (row.isNew || editingRowId === row.id) {
-            const idInput = document.createElement('input');
-            idInput.type = 'text';
-            idInput.className = 'custom-row-input';
-            idInput.placeholder = 'Введите ID';
-            idInput.value = row.notify_type || '';
-            idInput.addEventListener('input', (e) => {
-                updateCustomRow(row.id, 'notify_type', e.target.value);
-            });
-            idCell.appendChild(idInput);
-        } else {
-            const idText = document.createElement('span');
-            idText.textContent = row.notify_type || '';
-            idCell.appendChild(idText);
-        }
-
-        const tgCell = document.createElement('td');
-        tgCell.className = 'table-cell';
-        const tgCheckbox = document.createElement('input');
-        tgCheckbox.type = 'checkbox';
-        tgCheckbox.checked = row.want_telegram;
-        tgCheckbox.addEventListener('change', (e) => {
-            updateCustomRow(row.id, 'want_telegram', e.target.checked);
+    if (row.isNew || editingRowId === row.id) {
+        const nameInput = document.createElement('input');
+        nameInput.type = 'text';
+        nameInput.className = 'custom-row-input';
+        nameInput.placeholder = 'Введите название';
+        nameInput.value = row.description || '';
+        nameInput.addEventListener('input', (e) => {
+            updateCustomRow(row.id, 'description', e.target.value);
         });
-        tgCell.appendChild(tgCheckbox);
+        nameCell.appendChild(nameInput);
+    } else {
+        const nameText = document.createElement('span');
+        nameText.textContent = row.description || '';
+        nameCell.appendChild(nameText);
+    }
 
-        const emailCell = document.createElement('td');
-        emailCell.className = 'table-cell';
-        const emailCheckbox = document.createElement('input');
-        emailCheckbox.type = 'checkbox';
-        emailCheckbox.checked = row.want_email;
-        emailCheckbox.addEventListener('change', (e) => {
-            updateCustomRow(row.id, 'want_email', e.target.checked);
+    return nameCell;
+}
+
+/**
+ * Создает ячейку с ID для пользовательской строки
+ * @param {Object} row - Объект строки с данными
+ * @returns {HTMLTableCellElement} - Ячейка таблицы
+ */
+function createIdCell(row) {
+    const idCell = document.createElement('td');
+    idCell.className = 'table-cell table-cell-left';
+
+    if (row.isNew || editingRowId === row.id) {
+        const idInput = document.createElement('input');
+        idInput.type = 'text';
+        idInput.className = 'custom-row-input';
+        idInput.placeholder = 'Введите ID';
+        idInput.value = row.notify_type || '';
+        idInput.addEventListener('input', (e) => {
+            updateCustomRow(row.id, 'notify_type', e.target.value);
         });
-        emailCell.appendChild(emailCheckbox);
+        idCell.appendChild(idInput);
+    } else {
+        const idText = document.createElement('span');
+        idText.textContent = row.notify_type || '';
+        idCell.appendChild(idText);
+    }
 
-        const webhookCell = document.createElement('td');
-        webhookCell.className = 'table-cell';
-        const webhookContainer = document.createElement('div');
-        webhookContainer.className = 'webhook-multiselect-container webhook-multiselect-min-width';
-        webhookContainer.dataset.notifyType = row.notify_type || `custom_${row.id}`;
-        webhookCell.appendChild(webhookContainer);
+    return idCell;
+}
 
-        const actionsCell = document.createElement('td');
-        actionsCell.className = 'table-cell table-cell-center';
+/**
+ * Создает ячейку с чекбоксом для пользовательской строки
+ * @param {Object} row - Объект строки с данными
+ * @param {string} field - Поле для чекбокса ('wantTelegram' или 'wantEmail')
+ * @param {string} label - Подсказка для чекбокса
+ * @returns {HTMLTableCellElement} - Ячейка таблицы
+ */
+function createCheckboxCell(row, field, label) {
+    const cell = document.createElement('td');
+    cell.className = 'table-cell';
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.checked = row[field];
+    checkbox.addEventListener('change', (e) => {
+        updateCustomRow(row.id, field, e.target.checked);
+    });
+    cell.appendChild(checkbox);
+    return cell;
+}
 
-        const actionsContainer = document.createElement('div');
-        actionsContainer.className = 'actions-container';
+/**
+ * Создает ячейку с мультиселектом вебхуков для пользовательской строки
+ * @param {Object} row - Объект строки с данными
+ * @returns {HTMLTableCellElement} - Ячейка таблицы
+ */
+function createWebhookCell(row) {
+    const webhookCell = document.createElement('td');
+    webhookCell.className = 'table-cell';
+    const webhookContainer = document.createElement('div');
+    webhookContainer.className = 'webhook-multiselect-container webhook-multiselect-min-width';
+    webhookContainer.dataset.notifyType = row.notify_type || `custom_${row.id}`;
+    webhookCell.appendChild(webhookContainer);
+    return webhookCell;
+}
 
-        if (row.isNew || editingRowId === row.id) {
-            const saveBtn = document.createElement('button');
-            saveBtn.className = 'webhook-action-btn save webhook-action-btn-margin-left';
-            saveBtn.textContent = '✓';
-            saveBtn.title = row.isNew ? 'Добавить параметр' : 'Сохранить изменения';
+/**
+ * Создает ячейку с действиями (кнопки) для пользовательской строки
+ * @param {Object} row - Объект строки с данными
+ * @returns {HTMLTableCellElement} - Ячейка таблицы
+ */
+function createActionsCell(row) {
+    const actionsCell = document.createElement('td');
+    actionsCell.className = 'table-cell table-cell-center';
 
-            saveBtn.addEventListener('click', () => {
-                console.log('Сохранение, customRows до:', customRows);
-                if (row.isNew) {
-                    if (!row.notify_type || !row.description) {
-                        showNotification('error', 'Ошибка', 'Заполните все поля');
-                        return;
-                    }
-                    if (predefinedTypes.includes(row.notify_type) ||
-                        customRows.some(r => r.id !== row.id && r.notify_type === row.notify_type)) {
-                        showNotification('error', 'Ошибка', 'Параметр с таким ID уже существует');
-                        return;
-                    }
-                    delete row.isNew;
-                    editingRowId = null;
-                    showNotification('success', 'Добавлено', 'Параметр добавлен');
-                } else {
-                    editingRowId = null;
-                    showNotification('success', 'Сохранено', 'Изменения сохранены');
+    const actionsContainer = document.createElement('div');
+    actionsContainer.className = 'actions-container';
+
+    if (row.isNew || editingRowId === row.id) {
+        const saveBtn = document.createElement('button');
+        saveBtn.className = 'webhook-action-btn save webhook-action-btn-margin-left';
+        saveBtn.textContent = '✓';
+        saveBtn.title = row.isNew ? 'Добавить параметр' : 'Сохранить изменения';
+
+        saveBtn.addEventListener('click', () => {
+            console.log('Сохранение, customRows до:', customRows);
+            if (row.isNew) {
+                if (!row.notify_type || !row.description) {
+                    showNotification('error', 'Ошибка', 'Заполните все поля');
+                    return;
                 }
-                renderCustomRows();
-                console.log('customRows после сохранения:', customRows);
-            });
-
-            actionsContainer.appendChild(saveBtn);
-        } else {
-            const editBtn = document.createElement('button');
-            editBtn.className = 'webhook-action-btn edit webhook-action-btn-margin-right';
-            editBtn.textContent = '✎';
-            editBtn.title = 'Редактировать';
-            editBtn.addEventListener('click', () => {
-                editingRowId = row.id;
-                renderCustomRows();
-            });
-
-            const deleteBtn = document.createElement('button');
-            deleteBtn.className = 'webhook-action-btn delete';
-            deleteBtn.textContent = '✕';
-            deleteBtn.title = 'Удалить';
-            deleteBtn.addEventListener('click', () => {
-                if (confirm(`Вы уверены, что хотите удалить параметр "${row.description}"?`)) {
-                    deleteCustomRow(row.id);
-                    showNotification('success', 'Удалено', 'Параметр удален');
+                if (predefinedTypes.includes(row.notify_type) ||
+                    customRows.some(r => r.id !== row.id && r.notify_type === row.notify_type)) {
+                    showNotification('error', 'Ошибка', 'Параметр с таким ID уже существует');
+                    return;
                 }
-            });
+                delete row.isNew;
+                editingRowId = null;
+                showNotification('success', 'Добавлено', 'Параметр добавлен');
+            } else {
+                editingRowId = null;
+                showNotification('success', 'Сохранено', 'Изменения сохранены');
+            }
+            renderCustomRows();
+            console.log('customRows после сохранения:', customRows);
+        });
 
-            actionsContainer.appendChild(editBtn);
-            actionsContainer.appendChild(deleteBtn);
-        }
+        actionsContainer.appendChild(saveBtn);
+    } else {
+        const editBtn = document.createElement('button');
+        editBtn.className = 'webhook-action-btn edit webhook-action-btn-margin-right';
+        editBtn.textContent = '✎';
+        editBtn.title = 'Редактировать';
+        editBtn.addEventListener('click', () => {
+            editingRowId = row.id;
+            renderCustomRows();
+        });
 
-        actionsCell.appendChild(actionsContainer);
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'webhook-action-btn delete';
+        deleteBtn.textContent = '✕';
+        deleteBtn.title = 'Удалить';
+        deleteBtn.addEventListener('click', () => {
+            if (confirm(`Вы уверены, что хотите удалить параметр "${row.description}"?`)) {
+                deleteCustomRow(row.id);
+                showNotification('success', 'Удалено', 'Параметр удален');
+            }
+        });
 
-        tr.appendChild(nameCell);
-        tr.appendChild(idCell);
-        tr.appendChild(tgCell);
-        tr.appendChild(emailCell);
-        tr.appendChild(webhookCell);
-        tr.appendChild(actionsCell);
+        actionsContainer.appendChild(editBtn);
+        actionsContainer.appendChild(deleteBtn);
+    }
 
-        tbody.appendChild(tr);
+    actionsCell.appendChild(actionsContainer);
+    return actionsCell;
+}
 
-        setTimeout(() => {
+/**
+ * Создает элемент строки таблицы для пользовательской строки
+ * @param {Object} row - Объект строки с данными
+ * @returns {HTMLTableRowElement} - Элемент строки таблицы
+ */
+function createCustomRowElement(row) {
+    const tr = document.createElement('tr');
+    tr.className = 'custom-row';
+    tr.dataset.id = row.id;
+
+    tr.appendChild(createNameCell(row));
+    tr.appendChild(createIdCell(row));
+    tr.appendChild(createCheckboxCell(row, 'wantTelegram', 'Telegram'));
+    tr.appendChild(createCheckboxCell(row, 'wantEmail', 'Email'));
+    tr.appendChild(createWebhookCell(row));
+    tr.appendChild(createActionsCell(row));
+
+    return tr;
+}
+
+/**
+ * Инициализирует мультиселект для созданной строки
+ * @param {HTMLTableRowElement} tr - Элемент строки таблицы
+ * @param {Object} row - Объект строки с данными
+ */
+function initMultiselectForRow(tr, row) {
+    setTimeout(() => {
+        const webhookContainer = tr.querySelector('.webhook-multiselect-container');
+        if (webhookContainer) {
             if (!webhookSelections[webhookContainer.dataset.notifyType]) {
-                webhookSelections[webhookContainer.dataset.notifyType] = row.webhook_urls || [];
+                webhookSelections[webhookContainer.dataset.notifyType] = row.webhookUrls || [];
             }
             const instance = createMultiselect(webhookContainer, webhookContainer.dataset.notifyType);
             multiselectInstances.push({
                 notifyType: webhookContainer.dataset.notifyType,
                 instance
             });
-        }, 0);
-    });
+        }
+    }, 0);
+}
 
+/**
+ * Привязывает обработчики событий к кнопкам редактирования/удаления предопределенных строк
+ */
+function attachPredefinedRowListeners() {
     setTimeout(() => {
         const editButtons = document.querySelectorAll('.webhook-action-btn.edit[data-notify-type]');
         editButtons.forEach(button => {
@@ -556,6 +671,28 @@ export function renderCustomRows() {
             });
         });
     }, 100);
+}
+
+/**
+ * Отрисовывает все пользовательские строки в таблице настроек
+ * Очищает существующие пользовательские строки и создает новые на основе данных из массива customRows
+ * Обрабатывает как новые строки (в режиме редактирования), так и существующие записи
+ * Также инициализирует мультиселекты для вебхуков в каждой строке
+ */
+export function renderCustomRows() {
+    const tbody = getTableBody();
+    if (!tbody) return;
+
+    const existingCustomRows = tbody.querySelectorAll('.custom-row');
+    existingCustomRows.forEach(row => row.remove());
+
+    customRows.forEach((row) => {
+        const tr = createCustomRowElement(row);
+        tbody.appendChild(tr);
+        initMultiselectForRow(tr, row);
+    });
+
+    attachPredefinedRowListeners();
 }
 
 export function initSettingsListeners() {

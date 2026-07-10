@@ -5,78 +5,67 @@ import (
 	"traineesheep/notifyservice/internal/types"
 
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-type DatabaseDTO struct {
-	sql_connection *pgxpool.Pool
-}
-
-func NewDatabaseDTO(conn *pgxpool.Pool) *DatabaseDTO {
-	return &DatabaseDTO{sql_connection: conn}
-}
-
-type CheckboxesDTO struct {
-	want_email    bool
-	want_telegram bool
-	want_webhook  bool
-}
-
-func (d DatabaseDTO) AddEmail(email string) error {
-	conn := d.sql_connection
+// Функция AddEmail нужна для добавления адреса почты в базу данных
+func AddEmail(Ctx context.Context, email string) error {
+	conn := types.SqlConnection
 	query := `INSERT INTO client (email) VALUES ($1)`
-	_, err := conn.Exec(context.Background(), query, email)
+	_, err := conn.Exec(Ctx, query, email)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (d DatabaseDTO) GetCheckboxSettings(notify_type string) (error, bool, bool, []string) {
-	var want_email, want_telegram bool
-	var want_webhook []string
-	conn := d.sql_connection
+// Функция GetCheckboxSettings нужна для сохранения настроек переключателей из админ-панели в базу
+func GetCheckboxSettings(Ctx context.Context, notify_type string) (error, types.CheckboxesParams) {
+	var wantEmail, wantTelegram bool
+	var wantWebhook []string
+	conn := types.SqlConnection
 	query := `SELECT want_email, want_telegram, want_webhook FROM notify_type_message
 	WHERE notify_type = $1`
-	row := conn.QueryRow(context.Background(), query, notify_type)
-	if err := row.Scan(&want_email, &want_telegram, &want_webhook); err != nil {
-		return err, false, false, nil
+	row := conn.QueryRow(Ctx, query, notify_type)
+	if err := row.Scan(&wantEmail, &wantTelegram, &wantWebhook); err != nil {
+		return err, types.CheckboxesParams{WantEmail: false, WantTelegram: false, WantWebhook: nil}
 	}
-	return nil, want_email, want_telegram, want_webhook
+	return nil, types.CheckboxesParams{WantEmail: wantEmail, WantTelegram: wantTelegram, WantWebhook: wantWebhook}
 }
 
-func (d DatabaseDTO) GetSettings(json_list []types.NotifyTypeMessenger) (error, []types.NotifyTypeMessenger) {
-	conn := d.sql_connection
+// Функция GetSettings нужна для получения значений таблицы админ-панели из базы
+func GetSettings(Ctx context.Context, jsonList []types.NotifyTypeMessenger) (error, []types.NotifyTypeMessenger) {
+	conn := types.SqlConnection
 
 	query := `SELECT notify_type, notify_description, want_telegram, want_email, want_webhook FROM notify_type_message`
-	rows, err := conn.Query(context.Background(), query)
+	rows, err := conn.Query(Ctx, query)
 	if err != nil {
 		return err, nil
 	}
 	defer rows.Close()
 
 	for rows.Next() {
-		var notify_type string
-		var notify_description string
-		var want_email bool
-		var want_telegram bool
-		var webhook_urls []string
-		if err := rows.Scan(&notify_type, &notify_description, &want_telegram, &want_email, &webhook_urls); err != nil {
+		var notifyType string
+		var notifyDescription string
+		var wantEmail bool
+		var wantTelegram bool
+		var webhookUrls []string
+		if err := rows.Scan(&notifyType, &notifyDescription, &wantTelegram, &wantEmail, &webhookUrls); err != nil {
 			return err, nil
 		}
-		json_list = append(json_list, types.NotifyTypeMessenger{
-			NotifyType:   notify_type,
-			Description:  notify_description,
-			WantEmail:    want_email,
-			WantTelegram: want_telegram,
-			WebhookUrls:  webhook_urls,
+		jsonList = append(jsonList, types.NotifyTypeMessenger{
+			NotifyType:   notifyType,
+			Description:  notifyDescription,
+			WantEmail:    wantEmail,
+			WantTelegram: wantTelegram,
+			WebhookUrls:  webhookUrls,
 		})
 	}
-	return nil, json_list
+	return nil, jsonList
 }
 
-func (d DatabaseDTO) SaveSettings(elem types.NotifyTypeMessenger) error {
-	conn := d.sql_connection
+// Функция SaveSettings нужна для сохранения отредактированной таблицы админ-панели в базу
+func SaveSettings(Ctx context.Context, elem types.NotifyTypeMessenger) error {
+	conn := types.SqlConnection
 
 	query := `INSERT INTO notify_type_message (notify_type, notify_description, want_telegram, want_email, want_webhook)
     		VALUES ($1, $2, $3, $4, $5)
@@ -86,26 +75,28 @@ func (d DatabaseDTO) SaveSettings(elem types.NotifyTypeMessenger) error {
         	want_email = EXCLUDED.want_email,
 			want_webhook = EXCLUDED.want_webhook;`
 
-	_, err := conn.Exec(context.Background(), query, elem.NotifyType, elem.Description, elem.WantTelegram, elem.WantEmail, elem.WebhookUrls)
+	_, err := conn.Exec(Ctx, query, elem.NotifyType, elem.Description, elem.WantTelegram, elem.WantEmail, elem.WebhookUrls)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (d DatabaseDTO) DeleteSettings() error {
-	conn := d.sql_connection
+// Функция DeleteSettings нужна для очистки таблицы с типами уведомлений в базе
+func DeleteSettings(Ctx context.Context) error {
+	conn := types.SqlConnection
 	query := `TRUNCATE notify_type_message`
-	if _, err := conn.Exec(context.Background(), query); err != nil {
+	if _, err := conn.Exec(Ctx, query); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (d DatabaseDTO) GetNotifyTypes() (pgx.Rows, error) {
-	conn := d.sql_connection
+// Функция GetNotifyTypes нужна для выбора всех типов уведомлений из базы
+func GetNotifyTypes(Ctx context.Context) (pgx.Rows, error) {
+	conn := types.SqlConnection
 	query := `SELECT notify_type FROM notify_type_message`
-	rows, err := conn.Query(context.Background(), query)
+	rows, err := conn.Query(Ctx, query)
 	if err != nil {
 		return nil, err
 	}

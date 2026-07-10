@@ -116,7 +116,7 @@
     box-shadow: 0 4px 8px var(--shadow-color);
 }
 
-.not_Logged {
+.notLogged {
     display: flex;
     position: fixed;
     top: 0;

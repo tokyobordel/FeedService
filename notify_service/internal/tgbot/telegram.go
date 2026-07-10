@@ -10,8 +10,8 @@ import (
 )
 
 // Функция HandleSendMessage используется для отправки сообщений в Telegram бота
-func SendMessage(b *bot.Bot, ctx context.Context, chat_id int64, content string) error {
-	if _, err := b.SendMessage(ctx, &bot.SendMessageParams{
+func SendMessage(b *bot.Bot, Ctx context.Context, chat_id int64, content string) error {
+	if _, err := b.SendMessage(Ctx, &bot.SendMessageParams{
 		ChatID:    chat_id,              // ID чата куда надо отправить сообщение
 		Text:      content,              // Текст сообщения
 		ParseMode: models.ParseModeHTML, // Параметр для использования HTML при форматировании текста
@@ -21,6 +21,6 @@ func SendMessage(b *bot.Bot, ctx context.Context, chat_id int64, content string)
 	return nil
 }
 
-func Handler(ctx context.Context, b *bot.Bot, update *models.Update) {
+func Handler(Ctx context.Context, b *bot.Bot, update *models.Update) {
 
 }

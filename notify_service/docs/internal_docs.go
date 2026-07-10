@@ -182,15 +182,15 @@ const docTemplateinternal = `{
                     "description": "Тип уведмоления",
                     "type": "string"
                 },
-                "want_email": {
+                "wantEmail": {
                     "description": "Отправляем ли на почту",
                     "type": "boolean"
                 },
-                "want_telegram": {
+                "wantTelegram": {
                     "description": "Отправляем ли в телеграм",
                     "type": "boolean"
                 },
-                "webhook_urls": {
+                "webhookUrls": {
                     "description": "массив URL",
                     "type": "array",
                     "items": {
