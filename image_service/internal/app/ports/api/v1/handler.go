@@ -66,7 +66,7 @@ func (h *Handler) SetupRoutes(app *fiber.App) {
 	api.Get("/guest/image/:id", h.GetImageByIdGuest)
 	api.Get("/image/meta/:id", h.GetImageMetaById)
 	api.Get("/image", h.GetAllImages)
-	api.Post("/upload", h.AddImage)
+	api.Post("/image/upload", h.AddImage)
 
 	protected := api.Group("/", h.authMiddleware.RequireAccessToken())
 	protected.Get("/admin/image/:id", h.GetImageByIdAdmin)

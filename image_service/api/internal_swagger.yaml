@@ -178,14 +178,17 @@ paths:
       summary: Health check
       tags:
       - system
-  /image/meta/{id}:
+  /image:
     get:
-      description: Возвращает метаинформацию об изображении без бинарного содержимого
+      description: Возвращает все изображения в сервисе
       parameters:
-      - description: ID изображения
-        in: path
-        name: id
-        required: true
+      - description: Номер страницы (с нуля)
+        in: query
+        name: page
+        type: integer
+      - description: Размер страницы
+        in: query
+        name: page_size
         type: integer
       produces:
       - application/json
@@ -197,20 +200,16 @@ paths:
             - $ref: '#/definitions/v1.APIResponse'
             - properties:
                 data:
-                  $ref: '#/definitions/v1.ImageMetaResponse'
+                  $ref: '#/definitions/v1.UnmoderatedImagesResponse'
               type: object
         "400":
           description: Bad Request
           schema:
             $ref: '#/definitions/v1.APIResponse'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/v1.APIResponse'
-      summary: Метаданные изображения
+      summary: Список всех изображений с пагинацией
       tags:
       - images
-  /images/{id}/approve:
+  /image/{id}/approve:
     put:
       description: Устанавливает изображению статус approved
       parameters:
@@ -248,7 +247,7 @@ paths:
       summary: Одобрение изображения
       tags:
       - images
-  /images/{id}/block:
+  /image/{id}/block:
     put:
       description: Устанавливает изображению статус blocked
       parameters:
@@ -286,9 +285,41 @@ paths:
       summary: Блокировка изображения
       tags:
       - images
-  /images/unmoderated:
+  /image/meta/{id}:
     get:
-      description: Возвращает все изображения в сервисе
+      description: Возвращает метаинформацию об изображении без бинарного содержимого
+      parameters:
+      - description: ID изображения
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/v1.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/v1.ImageMetaResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/v1.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/v1.APIResponse'
+      summary: Метаданные изображения
+      tags:
+      - images
+  /image/unmoderated:
+    get:
+      description: Возвращает страницу изображений со статусом unmoderated
       parameters:
       - description: Номер страницы (с нуля)
         in: query
@@ -320,10 +351,10 @@ paths:
             $ref: '#/definitions/v1.APIResponse'
       security:
       - AccessToken: []
-      summary: Список всех изображений с пагинацией
+      summary: Список немодерированных изображений
       tags:
       - images
-  /upload:
+  /image/upload:
     post:
       consumes:
       - application/json

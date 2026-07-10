@@ -33,7 +33,7 @@ type AddImageRequest struct {
 // @Success      201 {object} APIResponse{data=ImageMetaResponse}
 // @Failure      400 {object} APIResponse
 // @Failure      500 {object} APIResponse
-// @Router       /upload [post]
+// @Router       /image/upload [post]
 func (h *Handler) AddImage(c fiber.Ctx) error {
 
 	var req AddImageRequest
@@ -173,7 +173,7 @@ func imageContentType(mediaType string) string {
 // @Failure      400 {object} APIResponse
 // @Failure      401 {object} APIResponse
 // @Failure      404 {object} APIResponse
-// @Router       /images/{id}/block [put]
+// @Router       /image/{id}/block [put]
 func (h *Handler) BlockImage(c fiber.Ctx) error {
 	idStr := c.Params("id")
 	id, err := strconv.Atoi(idStr)
@@ -209,7 +209,7 @@ func (h *Handler) BlockImage(c fiber.Ctx) error {
 // @Failure      400 {object} APIResponse
 // @Failure      401 {object} APIResponse
 // @Failure      404 {object} APIResponse
-// @Router       /images/{id}/approve [put]
+// @Router       /image/{id}/approve [put]
 func (h *Handler) ApprovedImage(c fiber.Ctx) error {
 	idStr := c.Params("id")
 	id, err := strconv.Atoi(idStr)
@@ -245,7 +245,7 @@ func (h *Handler) ApprovedImage(c fiber.Ctx) error {
 // @Success      200 {object} APIResponse{data=UnmoderatedImagesResponse}
 // @Failure      400 {object} APIResponse
 // @Failure      401 {object} APIResponse
-// @Router       /images/unmoderated [get]
+// @Router       /image/unmoderated [get]
 func (h *Handler) GetUnmoderatedImages(c fiber.Ctx) error {
 	pagination, derr := ParsePagination(c, h.logger, h.paginationConfig)
 	if derr != nil {
@@ -278,13 +278,11 @@ func (h *Handler) GetUnmoderatedImages(c fiber.Ctx) error {
 // @Description  Возвращает все изображения в сервисе
 // @Tags         images
 // @Produce      json
-// @Security     AccessToken
 // @Param        page query int false "Номер страницы (с нуля)"
 // @Param        page_size query int false "Размер страницы"
 // @Success      200 {object} APIResponse{data=UnmoderatedImagesResponse}
 // @Failure      400 {object} APIResponse
-// @Failure      401 {object} APIResponse
-// @Router       /images/unmoderated [get]
+// @Router       /image [get]
 func (h *Handler) GetAllImages(c fiber.Ctx) error {
 	pagination, derr := ParsePagination(c, h.logger, h.paginationConfig)
 	if derr != nil {

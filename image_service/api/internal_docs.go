@@ -140,6 +140,58 @@ const docTemplateinternal = `{
                 }
             }
         },
+        "/image": {
+            "get": {
+                "description": "Возвращает все изображения в сервисе",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "images"
+                ],
+                "summary": "Список всех изображений с пагинацией",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Номер страницы (с нуля)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Размер страницы",
+                        "name": "page_size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/v1.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/v1.UnmoderatedImagesResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/v1.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/image/meta/{id}": {
             "get": {
                 "description": "Возвращает метаинформацию об изображении без бинарного содержимого",
@@ -193,21 +245,21 @@ const docTemplateinternal = `{
                 }
             }
         },
-        "/images/unmoderated": {
+        "/image/unmoderated": {
             "get": {
                 "security": [
                     {
                         "AccessToken": []
                     }
                 ],
-                "description": "Возвращает все изображения в сервисе",
+                "description": "Возвращает страницу изображений со статусом unmoderated",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "images"
                 ],
-                "summary": "Список всех изображений с пагинацией",
+                "summary": "Список немодерированных изображений",
                 "parameters": [
                     {
                         "type": "integer",
@@ -256,7 +308,65 @@ const docTemplateinternal = `{
                 }
             }
         },
-        "/images/{id}/approve": {
+        "/image/upload": {
+            "post": {
+                "description": "Сохраняет новое изображение со статусом unmoderated",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "images"
+                ],
+                "summary": "Загрузка изображения",
+                "parameters": [
+                    {
+                        "description": "Данные изображения",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/v1.SwaggerAddImageRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/v1.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/v1.ImageMetaResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/v1.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/v1.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/image/{id}/approve": {
             "put": {
                 "security": [
                     {
@@ -320,7 +430,7 @@ const docTemplateinternal = `{
                 }
             }
         },
-        "/images/{id}/block": {
+        "/image/{id}/block": {
             "put": {
                 "security": [
                     {
@@ -377,64 +487,6 @@ const docTemplateinternal = `{
                     },
                     "404": {
                         "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/v1.APIResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/upload": {
-            "post": {
-                "description": "Сохраняет новое изображение со статусом unmoderated",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "images"
-                ],
-                "summary": "Загрузка изображения",
-                "parameters": [
-                    {
-                        "description": "Данные изображения",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/v1.SwaggerAddImageRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "201": {
-                        "description": "Created",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/v1.APIResponse"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "$ref": "#/definitions/v1.ImageMetaResponse"
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/v1.APIResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
                         "schema": {
                             "$ref": "#/definitions/v1.APIResponse"
                         }

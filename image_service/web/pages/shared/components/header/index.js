@@ -29,7 +29,7 @@ export function renderHeader(config = {}) {
         { href: '#/register', label: 'Регистрация' , authorized_only: false, guest_only: true},
         { href: '#/login', label: 'Вход', authorized_only: false, guest_only: true},
         { href: '#/moderation', label: 'Модерация', authorized_only: true, guest_only:false},
-        { href: '#/logout', label: 'Выйти из аккаунта', authorized_only: true, guest_only:false}
+        { href: '#/logout', label: 'Выйти', authorized_only: true, guest_only:false}
     ];
 
     for (const navLink of navLinks) {
